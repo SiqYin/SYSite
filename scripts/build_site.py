@@ -21,6 +21,7 @@
 import argparse
 import calendar
 import html
+import hashlib
 import json
 import os
 import re
@@ -28,6 +29,11 @@ import shutil
 import sys
 import time
 from urllib.parse import quote
+
+try:
+    import segno
+except ImportError:
+    segno = None
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -1179,6 +1185,23 @@ def main():
         s = os.path.join(SRC, "assets", sub)
         if os.path.isdir(s):
             shutil.copytree(s, os.path.join(DIST, "assets", sub), dirs_exist_ok=True)
+
+    # 字体缓存破版：文件名不变，浏览器（尤其是手机）会一直用旧字体，
+    # 导致哪怕字体里已经补上假名，用户看到的还是旧版。用文件哈希做查询串。
+    try:
+        css_path = os.path.join(DIST, "assets", "css", "main.css")
+        css = open(css_path, "r", encoding="utf-8").read()
+        fonts_dir = os.path.join(SRC, "assets", "fonts")
+        if os.path.isdir(fonts_dir):
+            for font in sorted(os.listdir(fonts_dir)):
+                if not font.endswith(".woff2"):
+                    continue
+                h = hashlib.sha256(open(os.path.join(fonts_dir, font), "rb").read()).hexdigest()[:10]
+                css = css.replace("../fonts/" + font, "../fonts/%s?v=%s" % (font, h))
+        open(css_path, "w", encoding="utf-8").write(css)
+        print("  字体缓存破版已应用（woff2 查询串带哈希）")
+    except Exception as exc:  # noqa: BLE001
+        print("  ! 字体缓存破版跳过：%s" % exc)
 
     shutil.copy(SNAPSHOT, os.path.join(DIST, "snapshot.json"))
     with open(os.path.join(DIST, "robots.txt"), "w", encoding="utf-8") as f:

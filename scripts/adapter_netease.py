@@ -109,6 +109,9 @@ def fetch_audio_urls(client, ids, brs=(128000, 192000, 320000, 999000), delay=0.
             u = it.get("url")
             if not u:
                 continue
+            # 必须 https：站点是 HTTPS，加载 http:// 音频会被浏览器按"混合内容"拦截（手机端直接失败）。实测 https://m701.music.126.net 可用。
+            if u.startswith("http://"):
+                u = "https://" + u[len("http://"):]
             slot = out.setdefault(str(it.get("id")), {})
             slot.setdefault(level_of(it.get("br")), u)   # 已有的更高档不覆盖
         if delay and i < len(brs) - 1:
