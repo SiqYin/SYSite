@@ -1391,46 +1391,6 @@
     paintBgmBar();
   }
 
-  function bgmNext(auto) {
-    if (bgm.mode === "loop" && auto) { bgmPlayAt(bgm.idx); return; }
-    bgm.idx += 1;
-    if (bgm.idx >= bgm.queue.length) {
-      // 第一轮走完 → 之后沿播放单顺序循环
-      bgm.idx = 0;
-      if (bgm.mode === "shuffle") {
-        bgm.queue = bgm.list.slice();
-        if (bgm.mode === "reverse") bgm.queue = bgm.list.slice().reverse();
-      }
-    }
-    bgmPlayAt(bgm.idx);
-  }
-
-  function bgmPrev() {
-    bgm.idx -= 1;
-    if (bgm.idx < 0) bgm.idx = bgm.queue.length - 1;
-    bgmPlayAt(bgm.idx);
-  }
-
-  function bgmToggle() {
-    var a = bgm.audio;
-    if (!a) return;
-    if (a.paused) { if (!a.src) bgmPlayAt(bgm.idx); else a.play().catch(function () {}); }
-    else a.pause();
-    paintBgmBar();
-  }
-
-  function tryAutoStart() {
-    bgmPlayAt(0);
-    // 浏览器常阻止带声音的自动播放：首次交互时补一次
-    var once = function () {
-      document.removeEventListener("pointerdown", once, true);
-      document.removeEventListener("keydown", once, true);
-      var a = bgm.audio;
-      if (a && a.paused) { a.play().catch(function () {}); }
-    };
-    document.addEventListener("pointerdown", once, true);
-    document.addEventListener("keydown", once, true);
-  }
 
   function bindBgmUi() {
     var btn = document.getElementById("bgm-btn");
