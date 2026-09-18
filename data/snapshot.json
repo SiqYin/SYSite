@@ -1,6 +1,6 @@
 {
  "schemaVersion": 1,
- "generatedAt": "2026-09-18T12:26:12Z",
+ "generatedAt": "2026-09-18T12:52:17Z",
  "profiles": {
   "github": {
    "platform": "github",
@@ -10,7 +10,7 @@
    "url": "https://github.com/SiqYin",
    "bio": "",
    "stats": {
-    "repos": 8,
+    "repos": 9,
     "followers": 1,
     "following": 1
    },
@@ -27,7 +27,7 @@
    "stats": {
     "followers": 3889,
     "following": false,
-    "likes": 42689
+    "likes": 42690
    },
    "level": 6,
    "avatarLocal": "assets/avatars/bilibili_avatar_543af103.webp"
@@ -36,17 +36,52 @@
    "platform": "netease",
    "name": "雪螢SiqYin",
    "handle": "网易音乐人 56102929",
-   "avatar": "https://p1.music.126.net/umItZ7bY0oCQvT0STt6d0w==/109951168484717238.jpg?param=300y300",
+   "avatar": "https://p2.music.126.net/umItZ7bY0oCQvT0STt6d0w==/109951168484717238.jpg?param=300y300",
    "url": "https://music.163.com/#/artist?id=56102929",
    "bio": "",
    "stats": {
     "albums": 13,
     "songs": 43
    },
-   "avatarLocal": "assets/avatars/netease_avatar_eea67742.webp"
+   "avatarLocal": "assets/avatars/netease_avatar_e86f3eff.webp"
   }
  },
  "items": [
+  {
+   "id": "github:1375803099",
+   "platform": "github",
+   "nativeId": "1375803099",
+   "type": "project",
+   "title": "SYSite",
+   "url": "https://github.com/SiqYin/SYSite",
+   "cover": null,
+   "coverRemote": null,
+   "publishedAt": "2026-09-18T12:48:16Z",
+   "description": "SYSite",
+   "tags": [
+    "Python"
+   ],
+   "stats": {
+    "stars": 0,
+    "forks": 0,
+    "issues": 0,
+    "watchers": 0
+   },
+   "durationSec": null,
+   "embed": null,
+   "collections": [],
+   "pinned": true,
+   "extra": {
+    "fullName": "SiqYin/SYSite",
+    "homepage": null,
+    "defaultBranch": "main",
+    "sizeKb": 0,
+    "archived": false,
+    "createdAt": "2026-09-18T11:59:28Z",
+    "pinOrder": 4,
+    "topics": []
+   }
+  },
   {
    "id": "github:1375512698",
    "platform": "github",
@@ -56,10 +91,14 @@
    "url": "https://github.com/SiqYin/PiliBabel",
    "cover": null,
    "coverRemote": null,
-   "publishedAt": "2026-09-18T10:44:30Z",
-   "description": "PiliBabel",
+   "publishedAt": "2026-09-18T12:09:13Z",
+   "description": "A third-party Bilibili client with AI-powered interface & content translation — a fork of PiliNara / PiliPlus. Bring your own OpenAI-compatible model; ~35 languages incl. Chinese dialects & China's e…",
    "tags": [
-    "Dart"
+    "Dart",
+    "ai-translation",
+    "android",
+    "bilibili",
+    "danmaku"
    ],
    "stats": {
     "stars": 0,
@@ -73,13 +112,29 @@
    "pinned": true,
    "extra": {
     "fullName": "SiqYin/PiliBabel",
-    "homepage": null,
+    "homepage": "https://github.com/SiqYin/PiliBabel/releases",
     "defaultBranch": "main",
     "sizeKb": 50882,
     "archived": false,
     "createdAt": "2026-09-18T07:11:04Z",
     "pinOrder": 3,
-    "topics": []
+    "topics": [
+     "ai-translation",
+     "android",
+     "bilibili",
+     "danmaku",
+     "dart",
+     "flutter",
+     "getx",
+     "i18n",
+     "language-translation",
+     "linux",
+     "openai-compatible",
+     "pilipala",
+     "third-party-client",
+     "unofficial-client",
+     "windows"
+    ]
    }
   },
   {
@@ -304,7 +359,7 @@
     "原创音乐"
    ],
    "stats": {
-    "play": 3211,
+    "play": 3213,
     "danmaku": 0
    },
    "durationSec": 618,
@@ -338,7 +393,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 63729,
+    "play": 63734,
     "danmaku": 9
    },
    "durationSec": 181,
@@ -439,7 +494,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 9946,
+    "play": 9947,
     "danmaku": 116
    },
    "durationSec": 247,
@@ -501,8 +556,8 @@
    "type": "audio",
    "title": "【洛天依言和吴语】人间应又雪",
    "url": "https://music.163.com/#/album?id=383582559",
-   "cover": "assets/covers/netease_album383582559_4a67ead0.webp",
-   "coverRemote": "https://p1.music.126.net/pI99AKiRRgiqtpCa8WA0gg==/109951173454444389.jpg?param=500y500",
+   "cover": "assets/covers/netease_song3397931174_0e4deda3.webp",
+   "coverRemote": "https://p2.music.126.net/pI99AKiRRgiqtpCa8WA0gg==/109951173454444389.jpg?param=500y500",
    "publishedAt": "2026-06-24T16:00:00Z",
    "description": "",
    "tags": [
@@ -570,7 +625,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 10112,
+    "play": 10115,
     "danmaku": 108
    },
    "durationSec": 240,
@@ -632,8 +687,8 @@
    "type": "audio",
    "title": "【洛天依乐正绫吴语】霜雪千年-吴语",
    "url": "https://music.163.com/#/album?id=380839246",
-   "cover": "assets/covers/netease_album380839246_b5a2bdd1.webp",
-   "coverRemote": "https://p1.music.126.net/s3y65vRmyf2gJnNoTO_h3w==/109951173357710985.jpg?param=500y500",
+   "cover": "assets/covers/netease_song3391836260_9b2d5cb6.webp",
+   "coverRemote": "https://p2.music.126.net/s3y65vRmyf2gJnNoTO_h3w==/109951173357710985.jpg?param=500y500",
    "publishedAt": "2026-06-08T16:00:00Z",
    "description": "",
    "tags": [
@@ -735,7 +790,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 2175,
+    "play": 2176,
     "danmaku": 4
    },
    "durationSec": 254,
@@ -803,7 +858,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 2046,
+    "play": 2047,
     "danmaku": 3
    },
    "durationSec": 260,
@@ -933,8 +988,8 @@
    "type": "audio",
    "title": "【星尘吴语闽南语】嘉平歌【中古汉语附】",
    "url": "https://music.163.com/#/album?id=362367732",
-   "cover": "assets/covers/netease_album362367732_5ceced96.webp",
-   "coverRemote": "https://p1.music.126.net/O3Fc4adhTAyCtPUoT7Tzxw==/109951172757534313.jpg?param=500y500",
+   "cover": "assets/covers/netease_song3350562657_594368e2.webp",
+   "coverRemote": "https://p2.music.126.net/O3Fc4adhTAyCtPUoT7Tzxw==/109951172757534313.jpg?param=500y500",
    "publishedAt": "2026-02-15T16:00:00Z",
    "description": "",
    "tags": [
@@ -1064,8 +1119,8 @@
    "type": "audio",
    "title": "【洛天依吴语】杳杳神京路",
    "url": "https://music.163.com/#/album?id=360725825",
-   "cover": "assets/covers/netease_album360725825_86495a17.webp",
-   "coverRemote": "https://p1.music.126.net/2PG7HVq_5pLZ8MLTvBm2_w==/109951172688573264.jpg?param=500y500",
+   "cover": "assets/covers/netease_song3346195311_50dba58e.webp",
+   "coverRemote": "https://p2.music.126.net/2PG7HVq_5pLZ8MLTvBm2_w==/109951172688573264.jpg?param=500y500",
    "publishedAt": "2026-02-02T16:00:00Z",
    "description": "",
    "tags": [
@@ -1385,8 +1440,8 @@
    "type": "audio",
    "title": "【张居正原创曲明代汉语版】《清凉门》【星尘原创】",
    "url": "https://music.163.com/#/album?id=289298614",
-   "cover": "assets/covers/netease_album289298614_ed829d83.webp",
-   "coverRemote": "https://p1.music.126.net/fiyQmI9cGuumDnniqxW3Pg==/109951172184587719.jpg?param=500y500",
+   "cover": "assets/covers/netease_song2758144442_b56ac78a.webp",
+   "coverRemote": "https://p2.music.126.net/fiyQmI9cGuumDnniqxW3Pg==/109951172184587719.jpg?param=500y500",
    "publishedAt": "2025-10-22T16:00:00Z",
    "description": "",
    "tags": [
@@ -1550,8 +1605,8 @@
    "type": "audio",
    "title": "如愿-吴语版-",
    "url": "https://music.163.com/#/album?id=286793040",
-   "cover": "assets/covers/netease_album286793040_6a6e8b63.webp",
-   "coverRemote": "https://p1.music.126.net/phERFeU9YrB5LTkBYaXu4Q==/109951172086258176.jpg?param=500y500",
+   "cover": "assets/covers/netease_song2751417434_bb4bc6c0.webp",
+   "coverRemote": "https://p2.music.126.net/phERFeU9YrB5LTkBYaXu4Q==/109951172086258176.jpg?param=500y500",
    "publishedAt": "2025-09-29T16:00:00Z",
    "description": "",
    "tags": [
@@ -1681,8 +1736,8 @@
    "type": "audio",
    "title": "【洛天依吴语】不堪人间",
    "url": "https://music.163.com/#/album?id=285581265",
-   "cover": "assets/covers/netease_album285581265_6db498f9.webp",
-   "coverRemote": "https://p1.music.126.net/Z3W-Sm4LeDfvegjSZcvp7w==/109951172033158344.jpg?param=500y500",
+   "cover": "assets/covers/netease_song2747649396_023fbd65.webp",
+   "coverRemote": "https://p2.music.126.net/Z3W-Sm4LeDfvegjSZcvp7w==/109951172033158344.jpg?param=500y500",
    "publishedAt": "2025-09-17T16:00:00Z",
    "description": "",
    "tags": [
@@ -1716,7 +1771,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 107909,
+    "play": 107910,
     "danmaku": 184
    },
    "durationSec": 129,
@@ -1778,8 +1833,8 @@
    "type": "audio",
    "title": "请覅得带走我。（请不要带我走。-吴语翻唱-）",
    "url": "https://music.163.com/#/album?id=283709998",
-   "cover": "assets/covers/netease_album283709998_bb8d6b3b.webp",
-   "coverRemote": "https://p1.music.126.net/VtU-KWTnMy17hFrP7xvawg==/109951171968051565.jpg?param=500y500",
+   "cover": "assets/covers/netease_song2742796005_d0c0d66d.webp",
+   "coverRemote": "https://p2.music.126.net/VtU-KWTnMy17hFrP7xvawg==/109951171968051565.jpg?param=500y500",
    "publishedAt": "2025-09-02T16:00:00Z",
    "description": "",
    "tags": [
@@ -2635,7 +2690,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 23804,
+    "play": 23806,
     "danmaku": 54
    },
    "durationSec": 257,
@@ -2703,7 +2758,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 37060,
+    "play": 37061,
     "danmaku": 36
    },
    "durationSec": 233,
@@ -2807,7 +2862,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 98714,
+    "play": 98715,
     "danmaku": 29
    },
    "durationSec": 290,
@@ -3039,8 +3094,8 @@
    "type": "audio",
    "title": "【星尘梦华语】四万秋",
    "url": "https://music.163.com/#/album?id=250487360",
-   "cover": "assets/covers/netease_album250487360_e18d2e6c.webp",
-   "coverRemote": "https://p1.music.126.net/erYc92UyLubT2ByIPpu1-Q==/109951170037764003.jpg?param=500y500",
+   "cover": "assets/covers/netease_song2635875706_d175675f.webp",
+   "coverRemote": "https://p2.music.126.net/erYc92UyLubT2ByIPpu1-Q==/109951170037764003.jpg?param=500y500",
    "publishedAt": "2024-10-11T16:00:00Z",
    "description": "",
    "tags": [
@@ -3442,8 +3497,8 @@
    "type": "audio",
    "title": "寄明月多民族语言翻唱（嘉绒、纳西、达斡尔、傈僳、白、黎、东乡、仡佬）",
    "url": "https://music.163.com/#/song?id=2611334384",
-   "cover": "assets/covers/netease_song2612131276_4739fbf4.webp",
-   "coverRemote": "https://p2.music.126.net/t43tnqxGAuNafwTcqnAzKA==/109951169816074497.jpg?param=500y500",
+   "cover": "assets/covers/netease_song2611334384_0e0e1bd9.webp",
+   "coverRemote": "https://p1.music.126.net/t43tnqxGAuNafwTcqnAzKA==/109951169816074497.jpg?param=500y500",
    "publishedAt": "2024-07-24T16:00:00Z",
    "description": "",
    "tags": [
@@ -3510,8 +3565,8 @@
    "type": "audio",
    "title": "【洛天依吴语】望北去（重制版）",
    "url": "https://music.163.com/#/album?id=242864876",
-   "cover": "assets/covers/netease_album242864876_06fe3510.webp",
-   "coverRemote": "https://p1.music.126.net/DfF5SWFnce0xRhOwccb3zQ==/109951169810474995.jpg?param=500y500",
+   "cover": "assets/covers/netease_song2610770221_9f8acf96.webp",
+   "coverRemote": "https://p2.music.126.net/DfF5SWFnce0xRhOwccb3zQ==/109951169810474995.jpg?param=500y500",
    "publishedAt": "2024-07-22T16:00:00Z",
    "description": "",
    "tags": [
@@ -4231,7 +4286,7 @@
     "音乐综合"
    ],
    "stats": {
-    "play": 328084,
+    "play": 328090,
     "danmaku": 713
    },
    "durationSec": 277,
@@ -4299,7 +4354,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 17152,
+    "play": 17153,
     "danmaku": 11
    },
    "durationSec": 184,
@@ -4745,7 +4800,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 760194,
+    "play": 760200,
     "danmaku": 4748
    },
    "durationSec": 289,
@@ -5193,7 +5248,7 @@
     "MV"
    ],
    "stats": {
-    "play": 86062,
+    "play": 86063,
     "danmaku": 566
    },
    "durationSec": 251,
@@ -5435,7 +5490,7 @@
     "翻唱"
    ],
    "stats": {
-    "play": 67190,
+    "play": 67191,
     "danmaku": 115
    },
    "durationSec": 204,
@@ -5874,7 +5929,7 @@
     "综合"
    ],
    "stats": {
-    "play": 99397,
+    "play": 99399,
     "danmaku": 180
    },
    "durationSec": 227,
@@ -6267,8 +6322,8 @@
    "type": "audio",
    "title": "【吴语/闽南语】惊鹊【洛天依/乐正绫】",
    "url": "https://music.163.com/#/song?id=2684910772",
-   "cover": "assets/covers/netease_song2042992713_2e61be1e.webp",
-   "coverRemote": "https://p2.music.126.net/XDvu7Ja1mtsgpARf6rN7tg==/109951170984710260.jpg?param=500y500",
+   "cover": "assets/covers/netease_album162646784_9dfc45bc.webp",
+   "coverRemote": "https://p1.music.126.net/XDvu7Ja1mtsgpARf6rN7tg==/109951170984710260.jpg?param=500y500",
    "publishedAt": "2023-03-19T16:00:00Z",
    "description": "",
    "tags": [
@@ -6335,8 +6390,8 @@
    "type": "audio",
    "title": "【星尘吴语】四万秋",
    "url": "https://music.163.com/#/song?id=2636801212",
-   "cover": "assets/covers/netease_song2042992713_2e61be1e.webp",
-   "coverRemote": "https://p2.music.126.net/XDvu7Ja1mtsgpARf6rN7tg==/109951170984710260.jpg?param=500y500",
+   "cover": "assets/covers/netease_album162646784_9dfc45bc.webp",
+   "coverRemote": "https://p1.music.126.net/XDvu7Ja1mtsgpARf6rN7tg==/109951170984710260.jpg?param=500y500",
    "publishedAt": "2023-03-19T16:00:00Z",
    "description": "",
    "tags": [
@@ -6437,8 +6492,8 @@
    "type": "audio",
    "title": "【言和吴语】不眠之夜-完整版-",
    "url": "https://music.163.com/#/song?id=2121490212",
-   "cover": "assets/covers/netease_song2042992713_2e61be1e.webp",
-   "coverRemote": "https://p2.music.126.net/XDvu7Ja1mtsgpARf6rN7tg==/109951170984710260.jpg?param=500y500",
+   "cover": "assets/covers/netease_album162646784_9dfc45bc.webp",
+   "coverRemote": "https://p1.music.126.net/XDvu7Ja1mtsgpARf6rN7tg==/109951170984710260.jpg?param=500y500",
    "publishedAt": "2023-03-19T16:00:00Z",
    "description": "",
    "tags": [
@@ -7945,11 +8000,11 @@
  "platformStatus": {
   "github": {
    "ok": true,
-   "itemCount": 7,
+   "itemCount": 8,
    "collectionCount": 0,
-   "latestAt": "2026-09-18T10:44:30Z",
+   "latestAt": "2026-09-18T12:48:16Z",
    "error": null,
-   "fetchedAt": "2026-09-18T12:24:17Z"
+   "fetchedAt": "2026-09-18T12:49:31Z"
   },
   "bilibili": {
    "ok": true,
@@ -7957,7 +8012,7 @@
    "collectionCount": 6,
    "latestAt": "2026-09-10T11:00:00Z",
    "error": null,
-   "fetchedAt": "2026-09-18T12:24:40Z"
+   "fetchedAt": "2026-09-18T12:50:06Z"
   },
   "netease": {
    "ok": true,
@@ -7965,11 +8020,11 @@
    "collectionCount": 0,
    "latestAt": "2026-06-24T16:00:00Z",
    "error": null,
-   "fetchedAt": "2026-09-18T12:26:12Z"
+   "fetchedAt": "2026-09-18T12:52:17Z"
   }
  },
  "errors": [],
- "fingerprint": "5b5983dbcf13f581",
+ "fingerprint": "4395a40331f83f00",
  "changed": true,
  "profilesLocalReady": true
 }
