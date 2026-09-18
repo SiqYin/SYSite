@@ -271,19 +271,23 @@ class Builder:
                     '<img src="%s%s" alt="" loading="lazy" decoding="async">' % (self.prefix, esc(cover))
                     if cover else ""))
         cls = "" if rank == 1 else (" r2" if rank == 2 else " r3")
+        song_attr = ''
+        if kind == "audio":
+            sid = str((it.get("embed") or {}).get("songId") or "")
+            song_attr = ' data-song="%s"' % esc(sid)
         embed = ((it.get("embed") or {}).get("src", "") if kind == "audio"
                  else bili_embed((it.get("embed") or {}).get("bvid") or it["nativeId"],
                                  (it.get("embed") or {}).get("cid")))
         return (
-            '<button class="mini" type="button" data-play="1" data-kind="%s" '
+            '<button class="mini" type="button" data-play="1" data-kind="%s"%s '
             'data-title="%s" data-meta="%s" data-embed="%s" data-source="%s" '
             'data-source-label="%s" data-platform="%s">%s'
             '<span class="mini-body"><span class="mini-title"><span class="mini-rank%s">%d</span>%s</span>'
             '<span class="mini-meta">%s</span></span></button>'
-        ) % (kind, esc(it["title"]), esc(" · ".join(bits)), esc(embed), esc(it["url"]),
-             esc(self.t("player.openSourceAudio" if kind == "audio" else "player.openSource")),
-             PLATFORM_LABEL.get(it["platform"], ""), thumb, cls, rank, esc(it["title"]),
-             esc(" · ".join(bits)))
+          ) % (kind, song_attr, esc(it["title"]), esc(" · ".join(bits)), esc(embed), esc(it["url"]),
+               esc(self.t("player.openSourceAudio" if kind == "audio" else "player.openSource")),
+               PLATFORM_LABEL.get(it["platform"], ""), thumb, cls, rank, esc(it["title"]),
+               esc(" · ".join(bits)))
 
     def project_card(self, it, badge=None, delay=0):
         lang = (it.get("tags") or [None])[0]
@@ -531,6 +535,9 @@ class Builder:
                   (str(len(d["songs"])), self.t("unit.tracks"))]
         stat_html = "".join('<div class="stat"><b>%s</b><span>%s</span></div>' % (esc(v), esc(k))
                             for v, k in stats)
+        # 用户要求注明：这些是「本站已收录」的数量，不是平台全量
+        hero_note = ('<p class="hero-note">%s</p>' % esc(self.t("hero.note"))
+                     if "hero.note" in self.strings else "")
         links = []
         if bili.get("url"):
             links.append('<a class="pill-link primary" href="%s" target="_blank" rel="noopener noreferrer">%s</a>'
@@ -544,9 +551,10 @@ class Builder:
         return ('<section class="hero"><div class="wrap"><div class="hero-in rise">'
                 '<img class="avatar" src="%s%s" alt="%s">'
                 '<div class="hero-body"><h1>%s</h1><p class="hero-bio">%s</p>'
-                '<div class="hero-stats">%s</div><div class="hero-links">%s</div></div>'
+                '<div class="hero-stats">%s</div>%s<div class="hero-links">%s</div></div>'
                 "</div></div></section>"
-                ) % (self.prefix, esc(avatar), esc(name), esc(name), esc(bio), stat_html, "".join(links))
+                ) % (self.prefix, esc(avatar), esc(name), esc(name), esc(bio), stat_html,
+                     hero_note, "".join(links))
 
     def wuyue_items(self, limit):
         """精选吴语视频：取指定视频合集（默认「吴越春秋」）内的视频，按播放量从高到低。
@@ -1176,16 +1184,16 @@ def main():
     with open(os.path.join(DIST, "robots.txt"), "w", encoding="utf-8") as f:
         f.write("User-agent: *\nAllow: /\n")
 
-    # 播放器运行时数据（音频直链 + 动态歌词），独立成一个文件按需加载，
+    # 播放器运行时数据（多档音频直链 + 动态歌词），独立成一个文件按需加载，
     # 不塞进页面，避免四个语言版本各背一份。
     player = shared["snap"].get("player") or {}
-    pd = {k: v for k, v in player.items() if v.get("u") or v.get("l")}
+    pd = {k: v for k, v in player.items() if v.get("q") or v.get("l")}
     with open(os.path.join(DIST, "assets", "player-data.json"), "w", encoding="utf-8") as f:
         json.dump(pd, f, ensure_ascii=False, separators=(",", ":"))
     psz = os.path.getsize(os.path.join(DIST, "assets", "player-data.json"))
     print("  播放器数据：%d 首，%.0f KB（直链 %d 首 / 歌词 %d 首）"
           % (len(pd), psz / 1024,
-             sum(1 for v in pd.values() if v.get("u")),
+             sum(1 for v in pd.values() if v.get("q")),
              sum(1 for v in pd.values() if v.get("l"))))
 
     total = nfiles = 0

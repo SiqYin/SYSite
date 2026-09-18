@@ -37,10 +37,24 @@ python scripts/list_ids.py --type video   # 列出内容 id，方便填策展配
 | `about.html` | 关于、平台入口、数据概览 |
 | `search.html` | 站内搜索（本地过滤，不请求第三方） |
 
-首页的精选区是三栏并排：**精选视频**、**精选音乐**、**精选吴语视频**，
-每栏默认露 3 条、可向下拉到前 20 名（榜单上限由 `config/site.json` 的
-`featured.maxItems` 控制）。精选视频/音乐跟随排序实时变化；
-精选吴语视频取自某个视频合集（`featured.wuSource`，默认「吴越春秋」），按播放量排序。
+首页的精选区是**四栏**并排：
+
+| 栏 | 内容 | 行为 |
+|---|---|---|
+| **精选视频** | 按热度排的视频 | 可下拉到前 20，跟随排序实时变化 |
+| **精选音乐** | 按热度排的歌曲 | 同上 |
+| **精选吴语视频** | 视频合集「吴越春秋」按播放量排 | 固定榜单，可下拉 |
+| **精选项目** | 人工指定的 GitHub 仓库 | **固定不变** |
+
+前三栏由 `featured.maxItems`（默认 20）与 `initialItems`（默认露 3 条）控制；
+精选视频/音乐跟随排序实时变化，精选吴语视频来自 `featured.wuSource` 指定的合集。
+
+**精选项目是人工策展**，在 `config/site.json` 的 `featured.fixedProjects` 里按
+仓库 `fullName` 列出，顺序即展示顺序，不随排序、筛选或数据变化而变化：
+
+```json
+"fixedProjects": ["SiqYin/wugniu_suwu", "SiqYin/wugniu_zyinzozin", "SiqYin/fcitx5-android"]
+```
 
 ## 排序、筛选与视图
 

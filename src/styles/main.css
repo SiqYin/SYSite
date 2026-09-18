@@ -651,36 +651,76 @@ main { position: relative; z-index: 1; }
   background: linear-gradient(180deg, rgba(11, 31, 46, .55), rgba(8, 22, 34, .88));
   pointer-events: none;
 }
-.op-inner {
+/* 播放器本体（上）：封面 + 标题 + 控制条，打开即见，不用滚动 */
+.op-player {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
-  gap: 24px;
-  padding: 26px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 22px 26px 16px;
 }
-.op-left { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .op-art {
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  width: 116px;
+  height: 116px;
+  flex: none;
   border-radius: var(--r-md);
   overflow: hidden;
-  box-shadow: 0 20px 44px rgba(0, 0, 0, .42);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .42);
   background: rgba(255, 255, 255, .06);
 }
 .op-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.op-title { margin: 0; font-size: 17px; font-weight: 500; line-height: 1.5; }
-.op-sub { margin: 5px 0 0; font-size: 12.5px; opacity: .72; }
+.op-pinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+.op-title { margin: 0; font-size: 16.5px; font-weight: 500; line-height: 1.45; }
+.op-sub { margin: 0; font-size: 12.5px; opacity: .72; }
+.op-pinfo .op-seek { width: 100%; }
+.op-btns { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .op-right { min-width: 0; display: flex; flex-direction: column; }
 
-/* 歌词区顶部：标题 + 译文开关 */
+/* 歌词外挂区（下）：独立滚动 */
+.op-lywrap {
+  position: relative;
+  padding: 0 26px 18px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 歌词区顶部：标题 + 译文开关 + 音质选择 */
 .op-lyhead {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 0 8px;
+  padding: 2px 0 10px;
+  border-top: 1px solid rgba(255, 255, 255, .12);
   flex: none;
 }
 .op-lylabel { font-size: 12.5px; opacity: .62; letter-spacing: .04em; }
+
+/* 音质选择（对应网易云的音质档位） */
+.op-q {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, .09);
+  border: 1px solid rgba(255, 255, 255, .18);
+}
+.op-q-btn {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, .68);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.op-q-btn:hover { color: #fff; background: rgba(255, 255, 255, .12); }
+.op-q-btn.on { background: #fff; color: #0b1f2e; font-weight: 500; }
+.op-q-btn:disabled { opacity: .35; cursor: default; }
 
 .op-tr-toggle {
   position: relative;
@@ -738,7 +778,7 @@ main { position: relative; z-index: 1; }
 
 .op-lyrics {
   flex: 1;
-  height: 330px;
+  height: 290px;
   overflow-y: auto;
   padding: 6px 8px 6px 0;
   scrollbar-width: thin;
@@ -766,7 +806,7 @@ main { position: relative; z-index: 1; }
 .op-tr { display: block; font-size: 12.5px; opacity: .68; margin-top: 1px; }
 .op-empty { margin: 0; padding: 26px 0; font-size: 13.5px; opacity: .55; }
 
-.op-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+.op-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .op-btn {
   width: 38px; height: 38px; flex: none;
   display: flex; align-items: center; justify-content: center;
@@ -810,9 +850,11 @@ main { position: relative; z-index: 1; }
 }
 
 @media (max-width: 760px) {
-  .op-inner { grid-template-columns: 1fr; gap: 18px; padding: 18px; }
-  .op-art { max-width: 260px; margin: 0 auto; }
-  .op-lyrics { height: 200px; }
+  .op-player { flex-direction: column; align-items: flex-start; gap: 14px; padding: 16px; }
+  .op-art { width: 96px; height: 96px; }
+  .op-lywrap { padding: 0 16px 16px; }
+  .op-lyrics { height: 190px; }
+  .op-q { flex-wrap: wrap; }
 }
 
 /* ====================== 弹窗（气泡播放器） ====================== */

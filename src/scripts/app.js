@@ -96,6 +96,8 @@
   var audioReady = null;
   var pl = null;              // 当前播放列表
   var plIdx = -1;
+  var currentSong = "";       // 当前曲目 id
+  var qAvail = [], qLevel = "";  // 可用音质档位与当前档位
   var el = {};                // 播放器内的元素引用
   var lrcLines = [], lrcEls = [], lastLrcIdx = -1;
   var seeking = false;
@@ -253,34 +255,33 @@
     var tpl =
       '<div class="op" id="op">' +
       '  <div class="op-bg" id="op-bg"></div><div class="op-scrim"></div>' +
-      '  <div class="op-inner">' +
-      '    <div class="op-left">' +
-      '      <div class="op-art"><img id="op-art" alt=""></div>' +
-      '      <div><h4 class="op-title" id="op-title"></h4><p class="op-sub" id="op-sub"></p></div>' +
-      "    </div>" +
-      '    <div class="op-right">' +
-      '      <div class="op-lyhead">' +
-      '        <span class="op-lylabel">' + esc(t("player.lyrics")) + "</span>" +
-      '        <button class="op-tr-toggle" id="op-tr" type="button" aria-pressed="true">' +
-      "          <span>" + esc(t("player.translation")) + "</span>" +
-      '          <span class="op-check"><svg viewBox="0 0 24 24" aria-hidden="true">' +
-      '<path d="M20 6L9 17l-5-5"/></svg></span>' +
-      "        </button>" +
-      "      </div>" +
-      '      <div class="op-lyrics" id="op-lyrics"></div>' +
-      "    </div>" +
-      "  </div>" +
-      '  <div class="op-inner" style="padding-top:0">' +
-      '    <div class="op-bar" style="grid-column:1/-1">' +
-      '      <button class="op-btn" id="op-prev" type="button" aria-label="prev">' + icon("prev") + "</button>" +
-      '      <button class="op-btn main" id="op-toggle" type="button" aria-label="play">' + icon("play") + "</button>" +
-      '      <button class="op-btn" id="op-next" type="button" aria-label="next">' + icon("next") + "</button>" +
-      '      <span class="op-time" id="op-cur">0:00</span>' +
+      '  <div class="op-player">' +
+      '    <span class="op-art"><img id="op-art" alt=""></span>' +
+      '    <div class="op-pinfo">' +
+      '      <h4 class="op-title" id="op-title"></h4>' +
+      '      <p class="op-sub" id="op-sub"></p>' +
       '      <span class="op-seek" id="op-seek"><span class="op-track"><span class="op-fill" id="op-fill"></span></span><span class="op-knob" id="op-knob"></span></span>' +
-      '      <span class="op-time" id="op-dur">0:00</span>' +
-      '      <button class="op-btn" id="op-vol" type="button" aria-label="mute">' + icon("volume") + "</button>" +
-      '      <span class="op-seek op-vol" id="op-volbar"><span class="op-track"><span class="op-fill" id="op-volfill"></span></span><span class="op-knob" id="op-volknob"></span></span>' +
+      '      <div class="op-btns">' +
+      '        <span class="op-time" id="op-cur">0:00</span>' +
+      '        <button class="op-btn" id="op-prev" type="button" aria-label="prev">' + icon("prev") + "</button>" +
+      '        <button class="op-btn main" id="op-toggle" type="button" aria-label="play">' + icon("play") + "</button>" +
+      '        <button class="op-btn" id="op-next" type="button" aria-label="next">' + icon("next") + "</button>" +
+      '        <span class="op-time" id="op-dur">0:00</span>' +
+      '        <button class="op-btn" id="op-vol" type="button" aria-label="mute">' + icon("volume") + "</button>" +
+      '        <span class="op-seek op-vol" id="op-volbar"><span class="op-track"><span class="op-fill" id="op-volfill"></span></span><span class="op-knob" id="op-volknob"></span></span>' +
+      "      </div>" +
+      '    </div>' +
+      "  </div>" +
+      '  <div class="op-lywrap">' +
+      '    <div class="op-lyhead">' +
+      '      <span class="op-lylabel">' + esc(t("player.lyrics")) + "</span>" +
+      '      <button class="op-tr-toggle" id="op-tr" type="button" aria-pressed="true">' +
+      "        <span>" + esc(t("player.translation")) + "</span>" +
+      '        <span class="op-check"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span>' +
+      "      </button>" +
+      '      <span class="op-q" id="op-q"></span>' +
       "    </div>" +
+      '    <div class="op-lyrics" id="op-lyrics"></div>' +
       "  </div>" +
       "</div>";
 
@@ -294,6 +295,7 @@
       sub: document.getElementById("op-sub"),
       lyrics: document.getElementById("op-lyrics"),
       trBtn: document.getElementById("op-tr"),
+      qBar: document.getElementById("op-q"),
       prev: document.getElementById("op-prev"),
       toggle: document.getElementById("op-toggle"),
       next: document.getElementById("op-next"),
@@ -384,8 +386,7 @@
     }
     bar.addEventListener("pointerdown", function (ev) {
       bar.classList.add("dragging");
-      var r = ratioOf(ev);
-      onRatio(r);
+      onRatio(ratioOf(ev));
       bar.setPointerCapture && bar.setPointerCapture(ev.pointerId);
       function move(e2) { onRatio(ratioOf(e2)); }
       function up() {
@@ -408,8 +409,15 @@
     if (d && el.dur.textContent === "0:00") el.dur.textContent = fmtTime(d);
   }
 
+  /* 音质档位：与网易云一致（标准/较高/极高/无损）。
+     请求某个档位但曲目没有时，接口会自动降级并返回实际码率，
+     所以构建期就按「返回的实际码率」归档，前端只列真正存在的档位。 */
+  var Q_ORDER = ["lossless", "320", "192", "128"];
+
   function load(item) {
+    currentSong = item.song;
     var d = AUDIO[item.song] || {};
+    var q = d.q || {};
     mTitle.textContent = item.title;
     mMeta.textContent = [item.album, item.meta].filter(Boolean).join(" · ");
     el.title.textContent = item.title;
@@ -426,7 +434,8 @@
     lrcLines = lines; lrcEls = []; lastLrcIdx = -1;
     var hasTr = lines.some(function (x) { return x.tr; });
     if (!lines.length) {
-      el.lyrics.innerHTML = '<p class="op-empty">' + esc(d.u ? t("player.noLyric") : t("player.notPlayable")) + "</p>";
+      el.lyrics.innerHTML = '<p class="op-empty">' + esc(q["128"] || q["192"] || q["320"] || q.lossless
+        ? t("player.noLyric") : t("player.notPlayable")) + "</p>";
       if (el.trBtn) el.trBtn.classList.add("is-hidden");
     } else {
       if (el.trBtn) el.trBtn.classList.toggle("is-hidden", !hasTr);
@@ -447,17 +456,57 @@
     }
     paintTrState();
 
-    // 音源
-    if (d.u) {
-      el.audio.src = d.u;
+    // 音源：取可用档位里最高的做默认，前端可切换
+    qAvail = Q_ORDER.filter(function (k) { return q[k]; });
+    if (el.qBar) {
+      var labels = { "lossless": t("q.lossless"), "320": t("q.320"), "192": t("q.192"), "128": t("q.128") };
+      el.qBar.innerHTML = qAvail.map(function (k) {
+        return '<button class="op-q-btn" type="button" data-q="' + k + '">' + esc(labels[k]) + "</button>";
+      }).join("");
+      var btns = el.qBar.querySelectorAll(".op-q-btn");
+      for (var i = 0; i < btns.length; i++) {
+        (function (b) {
+          b.addEventListener("click", function () { setQuality(b.getAttribute("data-q")); });
+        })(btns[i]);
+      }
+      el.qBar.classList.toggle("is-hidden", qAvail.length < 2);
+    }
+    qLevel = qAvail[0] || "";
+    if (qLevel && q[qLevel]) {
+      el.audio.src = q[qLevel];
       el.audio.load();
       el.root.classList.remove("op-failed");
       removeFallbackNote();
+      paintQ();
     } else {
       fallbackToOfficial(t("player.notPlayable"));
     }
     paintVol();
     mFoot.innerHTML = buildFoot(item);
+  }
+
+  function paintQ() {
+    if (!el.qBar) return;
+    var btns = el.qBar.querySelectorAll(".op-q-btn");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle("on", btns[i].getAttribute("data-q") === qLevel);
+    }
+  }
+
+  /* 切音质：保住当前进度与播放状态，只换音源 */
+  function setQuality(level) {
+    var d = AUDIO[currentSong] || {};
+    var q = d.q || {};
+    if (!level || !q[level] || level === qLevel) return;
+    var a = el.audio;
+    var t = a.currentTime || 0;
+    var playing = !a.paused;
+    qLevel = level;
+    paintQ();
+    a.src = q[level];
+    a.load();
+    a.currentTime = t;
+    if (playing) a.play().catch(function () {});
   }
 
   function buildFoot(item) {
@@ -470,6 +519,7 @@
     if (item.platform) s += '<span class="mnote">' + esc(item.platform) + "</span>";
     return s;
   }
+
 
   function nextTrack(step) {
     if (!pl || pl.length < 2) return;

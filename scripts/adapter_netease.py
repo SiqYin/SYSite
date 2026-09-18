@@ -72,27 +72,47 @@ def fetch_comment_counts(client, ids, delay=0.6):
     return out
 
 
-def fetch_audio_urls(client, ids):
-    """批量取音频直链（自建播放器用）。
+def fetch_audio_urls(client, ids, brs=(128000, 192000, 320000, 999000), delay=0.5):
+    """批量取音频直链（自建播放器用），**按码率分档**，供前端做音质选择。
 
-    实测一次塞全部 43 个 id 也没问题（42/43 有直链，缺的通常是伴奏或受限曲目）。
-    注意两点：
-    - 这个接**没有 CORS 头**，所以只能在构建期取，浏览器里没法实时刷新；
+    实测：
+    - 一次塞全部 43 个 id 也没问题（42/43 有直链，缺的通常是伴奏或受限曲目）；
+    - br=999000 在曲目没有无损时会自动降级，返回值里的 br 才是真实码率，
+      所以要按返回的 br 归档，而不是按请求的 br 标注；
+    - 这个接口**没有 CORS 头**，只能在构建期取，浏览器里没法实时刷新；
     - 链接带签名的时效（路径里含生成时间），所以每次构建都会重新取一遍。
+
+    返回 {songId: {"128": url, "192": url, "320": url, "lossless": url}}
     """
+    def level_of(real_br):
+        try:
+            v = int(real_br or 0)
+        except (TypeError, ValueError):
+            return "128"
+        if v > 500000:
+            return "lossless"
+        if v > 250000:
+            return "320"
+        if v > 160000:
+            return "192"
+        return "128"
+
     out = {}
-    if not ids:
-        return out
-    try:
-        d = client.get_json(
-            "https://music.163.com/api/song/enhance/player/url?ids=[%s]&br=320000"
-            % ",".join(str(x) for x in ids), referer=REF, timeout=60)
-    except Exception:  # noqa: BLE001
-        return out
-    for it in d.get("data") or []:
-        u = it.get("url")
-        if u:
-            out[str(it.get("id"))] = {"url": u, "br": it.get("br"), "size": it.get("size")}
+    for i, br in enumerate(brs):
+        try:
+            d = client.get_json(
+                "https://music.163.com/api/song/enhance/player/url?ids=[%s]&br=%d"
+                % (",".join(str(x) for x in ids), br), referer=REF, timeout=60)
+        except Exception:  # noqa: BLE001
+            continue
+        for it in d.get("data") or []:
+            u = it.get("url")
+            if not u:
+                continue
+            slot = out.setdefault(str(it.get("id")), {})
+            slot.setdefault(level_of(it.get("br")), u)   # 已有的更高档不覆盖
+        if delay and i < len(brs) - 1:
+            time.sleep(delay)
     return out
 
 
@@ -190,7 +210,7 @@ def collect(client, cfg, verbose=True):
     # 热度：评论数
     comments = fetch_comment_counts(client, [s["id"] for s in picked],
                                     delay=cfg["collect"].get("commentDelaySeconds", 0.6))
-    # 自建播放器所需：音频直链 + 动态歌词
+    # 自建播放器所需：多档音频直链 + 动态歌词
     audio = fetch_audio_urls(client, [s["id"] for s in picked])
     lyrics = fetch_lyrics(client, [s["id"] for s in picked],
                           delay=cfg["collect"].get("lyricDelaySeconds", 0.45))
@@ -201,8 +221,7 @@ def collect(client, cfg, verbose=True):
         ly = lyrics.get(sid) or {}
         if au or ly:
             result["playerData"][sid] = {
-                "u": au.get("url"),
-                "b": au.get("br"),
+                "q": au or None,
                 "l": ly.get("lrc"),
                 "t": ly.get("trans"),
             }

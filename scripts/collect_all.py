@@ -120,14 +120,15 @@ def main():
         platforms[name] = res
         print("    完成，用时 %.1fs，%s" % (res["seconds"], client.report()), flush=True)
 
-    # 未参与本次采集的平台，直接沿用旧数据
+    # 未参与本次采集的平台，直接沿用旧数据。
+    # 注意：不要把 prev 的整个 player 塞进来——那会覆盖已采集平台的新数据
+    # （player.update 是后写覆盖先写）。没采集的平台本来就没有播放器数据。
     for name in ORDER:
         if name not in platforms:
             platforms[name] = {
                 "ok": True, "items": prev_platforms.get(name, []),
                 "collections": prev_collections.get(name, []),
                 "profile": prev_profiles.get(name), "fetchedAt": None,
-                "playerData": prev.get("player") or {},
             }
 
     snapshot = M.build_snapshot(platforms, errors=errors)

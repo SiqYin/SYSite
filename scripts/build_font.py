@@ -35,7 +35,12 @@ ALWAYS = (
     "年月日时分秒周星期"
 )
 
-CJK = re.compile(r"[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\ufe30-\ufe4f\uff00-\uffef]")
+# 覆盖：CJK标点、平假名、片假名、注音/扩展、汉字、兼容表单、兼容标点、全角符号
+# （漏掉假名区段会导致日文页面的假名全部回落系统字体——踩过一次）
+CJK = re.compile(
+    r"[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\u31f0-\u31ff"
+    r"\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\ufe30-\ufe4f\uff00-\uffef]"
+)
 
 LOCALES = ("zh-CN", "zh-TW", "en", "ja")
 
