@@ -48,7 +48,7 @@ def main():
             i["id"], (i.get("publishedAt") or "----------")[:10],
             (i.get("title") or "")[:44], flag))
 
-    print("\n把上面的 id 粘进 data/curated.json 的 pinned.sets[].items 即可。")
+    print("\n把上面的 id 粘进 data/curated.json 的 featured（加进精选项目）或 hidden（不上站）即可。")
     return 0
 
 

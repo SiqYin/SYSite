@@ -420,11 +420,20 @@
   }
 
   /* ==================== 语言切换 ====================
-     每种语言是一份独立页面，菜单项就是普通链接。 */
+     每种语言是一份独立页面，菜单项就是普通链接。
+     点击时把选择写进 localStorage —— 这样根路径的语言自动判断会尊重用户的手动选择，
+     不会出现「选了简体又被自动弹回日文」这种来回跳。 */
   function bindLang() {
     var btn = document.getElementById("lang-btn");
     var menu = document.getElementById("lang-menu");
     if (!btn || !menu) return;
+    var items = menu.querySelectorAll(".lang-item");
+    for (var i = 0; i < items.length; i++) {
+      items[i].addEventListener("click", function () {
+        var code = this.getAttribute("hreflang");
+        try { if (code) localStorage.setItem("sys-locale", code); } catch (e) {}
+      });
+    }
     btn.addEventListener("click", function (e) { e.stopPropagation(); menu.classList.toggle("open"); });
     menu.addEventListener("click", function (e) { e.stopPropagation(); });
     document.addEventListener("click", function () { menu.classList.remove("open"); });
@@ -554,21 +563,6 @@
     }
   }
 
-  /* ==================== 匿名访问计数（默认关闭） ====================
-     只有在 config/site.json 里填了 analytics.endpoint 才会发这一次请求：
-     不带 Cookie、不带 Referer、不带任何个人标识，只用来做总量统计。 */
-  function pingAnalytics() {
-    var a = window.SYS_ANALYTICS;
-    if (!a || !a.enable || !a.endpoint) return;
-    try {
-      var url = a.endpoint + (a.endpoint.indexOf("?") < 0 ? "?" : "&") +
-                "site=" + encodeURIComponent(a.site || "site") +
-                "&p=" + encodeURIComponent(location.pathname);
-      fetch(url, { method: "GET", mode: "cors", credentials: "omit", referrerPolicy: "no-referrer", keepalive: true })
-        .catch(function () {});
-    } catch (e) {}
-  }
-
   /* ==================== 初始化 ==================== */
   document.addEventListener("DOMContentLoaded", function () {
     bindReveal();
@@ -580,6 +574,5 @@
     bindRise();
     bindTopbar();
     refreshFeatured();
-    pingAnalytics();
   });
 })();

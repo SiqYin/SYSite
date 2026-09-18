@@ -59,6 +59,7 @@ class HttpClient:
         return os.path.join(self.cache_dir, hashlib.sha1(key.encode("utf-8")).hexdigest()[:24] + ".bin")
 
     def _read_cache(self, key):
+        """ttl <= 0 表示「不读缓存」（强制重抓），但**仍然会写缓存**。"""
         if not self.cache_dir or self.ttl <= 0:
             return None
         p = self._cache_path(key)
@@ -73,7 +74,12 @@ class HttpClient:
             return None
 
     def _write_cache(self, key, body):
-        if not self.cache_dir or self.ttl <= 0:
+        """写缓存与 ttl 无关。
+
+        早期版本写成「ttl<=0 就不写」，结果 --no-cache 抓完什么都不留，
+        下次仍要重打几十个请求；这里把读写策略分开。
+        """
+        if not self.cache_dir:
             return
         try:
             with open(self._cache_path(key), "wb") as f:

@@ -68,22 +68,27 @@ Open Graph 卡片（共 28 张，约 31 KB/张），页面里已带
 **注意**：`og:image` 必须是绝对地址，站点正式域名写在 `config/site.json` 的
 `site.url`（当前是 `https://siqyin.github.io/SYSite`）。换域名时记得改这里。
 
-## 数据统计与访问计数
+## 数据统计
 
 `stats.html` 的数字全部由构建期快照算出（内容量、总播放、总评论、总时长、
 年度发布趋势、播放/评论前 10、平台分布），随每次更新自动重算。
 
-**访问计数默认关闭**，原因很实际：GitHub Pages 是纯静态托管，没有后端，
-真要做访客计数必须有一个计数端点。做法是自建一个极简端点
-（Cloudflare Worker + KV 免费额度就够，约 20 行代码），然后填进配置：
+本站**不做访客统计**（不引第三方、也不自建计数端点），页面上没有任何追踪代码。
 
-```json
-"analytics": { "enable": true, "endpoint": "https://your-worker.workers.dev/hit", "site": "SYSite" }
-```
+## 首访语言自动判断
 
-前端只会发**一次** `GET`，`credentials: omit`、`referrerPolicy: no-referrer`，
-不设 Cookie、不记录 IP、不做任何个人标识，只累加总量。
-没填 endpoint 时页面会明确显示「未启用」而不是假装有数据。
+只在**根路径**（简中首页）注入一段内联脚本，在渲染前完成判断，不会先闪中文再跳走。
+判断优先级：
+
+1. `localStorage` 里记的用户手选（点过右上角语言菜单）—— 最高优先，避免「选了简体又被弹走」
+2. **浏览器语言**：`zh-TW`/`zh-HK`/`zh-MO`/含 `Hant` → 繁体；`zh`/`zh-CN`/`zh-Hans` → 简体；`ja` → 日文
+   （这一步零网络请求，绝大多数中/日访客直接命中）
+3. **IP 归属地**（只在浏览器语言判不出来时才查一次 `api.country.is`）：
+   中国大陆 → 简体；中国香港/澳门/台湾 → 繁体；日本 → 日文
+4. 其余一律 → **英文**
+
+配置在 `config/site.json` 的 `localeDetect`，把 `enable` 设为 `false` 可完全关闭。
+已覆盖 16 个场景的自动化测试（`_probe/test_detect.js`，用 node vm 跑真实注入脚本）。
 
 ## 多语言
 
@@ -151,8 +156,10 @@ B 站对关注者与未关注者展示不同置顶，但接口**只对外暴露�
 内容有变化才提交 `data/` 与 `src/assets/`。
 也可以在 Actions 页面手动触发（workflow_dispatch）。
 
-首次需要在仓库 **Settings → Pages → Source** 里选 **GitHub Actions**，
-否则 deploy 作业会失败（采集与构建部分不受影响）。
+首次**不需要**手动去 Settings 里开 Pages：
+workflow 里先用 API `POST /repos/{owner}/{repo}/pages` 尝试启用，
+再用 `actions/configure-pages` 的 `enablement: true` 兜底，两者任一成功即可。
+启用后即为「GitHub Actions」构建方式。
 
 仓库地址：https://github.com/SiqYin/SYSite
 线上地址：https://siqyin.github.io/SYSite/

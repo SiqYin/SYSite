@@ -9,11 +9,20 @@
     "domain": "",
     "repository": "SiqYin/SYSite"
   },
-  "analytics": {
-    "_note": "访问统计。纯静态托管没有后端，所以默认关闭；填上自建端点（如 Cloudflare Worker）即启用，前端只发一次匿名 ping，不设 Cookie、不记录 IP。详见 README。",
-    "enable": false,
-    "endpoint": "",
-    "site": "SYSite"
+  "localeDetect": {
+    "_note": [
+      "首访语言自动判断。只在「根路径」（即简中首页）上生效，且尊重用户手动选过的语言。",
+      "优先级：localStorage 里记的选择 > 浏览器语言（中文/日文可直接判定）> IP 归属地 > 英文兜底。",
+      "浏览器语言能判定的情况不发任何网络请求；只有浏览器语言是英文/其他时才查一次 IP。",
+      "把 enable 设为 false 可完全关闭自动跳转。"
+    ],
+    "enable": true,
+    "geoipEndpoint": "https://api.country.is/",
+    "regions": {
+      "zh-CN": ["CN"],
+      "zh-TW": ["HK", "MO", "TW"],
+      "ja": ["JP"]
+    }
   },
   "accounts": {
     "github": {

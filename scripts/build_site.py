@@ -460,20 +460,28 @@ class Builder:
         canon = ("%s/%s%s" % (base, (self.sub + "/") if self.sub else "", page_path)) if base else ""
         alts = "".join('<link rel="alternate" hreflang="%s" href="%s/%s%s">'
                        % (code, base, (sub + "/") if sub else "", page_path) for code, _, sub in LOCALES) if base else ""
-        a = self.cfg.get("analytics") or {}
+
+        # 首访语言自动判断：只注入到「根路径」（简中首页），避免用户手动进入某语言页后被弹走
+        detect = ""
+        ld = self.cfg.get("localeDetect") or {}
+        if ld.get("enable") and self.locale == "zh-CN" and page == "index":
+            # 注意：<script> 里不能用 HTML 转义，必须用 JSON 编码保证是合法 JS 字面量
+            js = lambda v: json.dumps(v, ensure_ascii=False).replace("<", "\\u003c")  # noqa: E731
+            detect = DETECT_SCRIPT % {
+                "regions": js(ld.get("regions") or {}),
+                "geoip": js(ld.get("geoipEndpoint") or ""),
+                "default": js(self.cfg["site"]["defaultLocale"]),
+            }
 
         return SHELL % {
             "lang": esc(self.locale), "prefix": self.prefix, "title": esc(title),
             "desc": esc(self.t("site.desc")), "brand": esc(self.t("site.name")),
             "nav": nav, "lang_btn": esc(self.t("lang.current")),
             "lang_menu": "".join(lang_items), "search_url": self.url("search"),
-            "home": self.url("index"), "body": body, "head_extra": head_extra,
+            "home": self.url("index"), "body": body, "detect": detect,
+            "head_extra": head_extra,
             "og_url": esc(og_url), "canonical": esc(canon), "alt_links": alts,
             "site_url": esc(base), "locale": esc(self.locale), "page_key": esc(page),
-            "analytics_json": json.dumps({"enable": bool(a.get("enable")),
-                                          "endpoint": a.get("endpoint") or "",
-                                          "site": a.get("site") or "site"},
-                                         ensure_ascii=False, separators=(",", ":")),
             "footer_updated": esc("%s %s" % (self.t("footer.updated"),
                                              fmt_date(self.snap.get("generatedAt")))),
             "footer_note": esc(self.t("footer.generated")), "footer_status": "".join(status),
@@ -785,7 +793,7 @@ class Builder:
                      '<span class="bar-track"><span class="bar-fill" style="width:%.1f%%"></span></span>'
                      '<span class="bar-num">%d</span></div>') % (esc(y), n * 100.0 / peak, n)
 
-        # 播放最多 / 评论最多
+        # 分类排行：播放最多 / 评论最多
         top_v = [self.mini(v, i + 1) for i, v in enumerate(videos[:10])]
         top_s = [self.mini(s, i + 1) for i, s in enumerate(songs[:10])]
 
@@ -803,12 +811,6 @@ class Builder:
                     '<span class="bar-num">%d</span></div>') % (esc(PLATFORM_LABEL.get(p, p)),
                                                                 n * 100.0 / ptot, n)
 
-        # 访问统计（默认关闭，说明清楚为什么不默认开）
-        a = self.cfg.get("analytics") or {}
-        on = bool(a.get("enable")) and bool(a.get("endpoint"))
-        visits = ('<p class="stat-note ok">%s</p>' % esc(self.t("stats.visitsOn"))) if on else \
-                 ('<p class="stat-note">%s</p>' % esc(self.t("stats.visitsOff")))
-
         return ('<section class="section"><div class="wrap">'
                 '<div class="subsection-head"><h3>%s</h3><span class="sub">%s</span></div>'
                 '<div class="hero-stats">%s</div>'
@@ -818,16 +820,13 @@ class Builder:
                 '<div class="stat-cols">'
                 '<div><div class="subsection-head"><h3>%s</h3></div><div class="mini-list">%s</div></div>'
                 '<div><div class="subsection-head"><h3>%s</h3></div><div class="mini-list">%s</div></div>'
-                "</div>"
-                '<div class="subsection-head" style="margin-top:34px"><h3>%s</h3></div>%s'
-                "</div></section>"
+                "</div></div></section>"
                 ) % (esc(self.t("stats.overview")), esc("%s %d" % (self.t("stats.items"), total_items)),
                      overview, esc(self.t("stats.note")),
                      esc(self.t("stats.trend")), bars,
                      esc(self.t("stats.platforms")), ptw,
                      esc(self.t("stats.topVideos")), "".join(top_v),
-                     esc(self.t("stats.topSongs")), "".join(top_s),
-                     esc(self.t("stats.visits")), visits)
+                     esc(self.t("stats.topSongs")), "".join(top_s))
 
     # ---------- 搜索索引 ----------
     def search_index(self):
@@ -941,6 +940,7 @@ SHELL = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+%(detect)s
 <title>%(title)s</title>
 <meta name="description" content="%(desc)s">
 <meta property="og:type" content="website">
@@ -1011,11 +1011,49 @@ SHELL = """<!DOCTYPE html>
 
 <div class="toast" id="toast"></div>
 
-<script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";window.SYS_ANALYTICS=%(analytics_json)s;</script>
+<script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";</script>
 <script src="%(prefix)sassets/js/app.js"></script>
 </body>
 </html>
 """
+
+# 首访语言自动判断。做成内联脚本放在 <head>，在渲染前就决策，避免先闪一下中文再跳走。
+# 优先级：用户手选过 > 浏览器语言（中文/日文可立即判定，零网络请求） > IP 归属地 > 英文兜底。
+DETECT_SCRIPT = """<script>(function(){
+var REGIONS=%(regions)s, GEOIP=%(geoip)s, DEFAULT=%(default)s;
+var SUB={"zh-CN":"","zh-TW":"zh-TW/","en":"en/","ja":"ja/"};
+var HERE="zh-CN";
+function saved(){try{return localStorage.getItem("sys-locale");}catch(e){return null;}}
+function remember(v){try{localStorage.setItem("sys-locale",v);}catch(e){}}
+function go(target){
+  if(!target||target===HERE||!(target in SUB))return;
+  var path=location.pathname;
+  if(path.indexOf("zh-TW/")>=0||path.indexOf("en/")>=0||path.indexOf("ja/")>=0)return;
+  var prefix=SUB[target];
+  location.replace(path.replace(/[^/]*$/,prefix)+location.hash);
+}
+var pick=saved();
+if(pick&&(pick in SUB)){go(pick);return;}
+var langs=(navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||""]).map(function(s){return String(s||"").toLowerCase();});
+for(var i=0;i<langs.length;i++){
+  var l=langs[i];
+  if(/^zh(-|$)/.test(l)){
+    if(/hant|tw|hk|mo/.test(l)){go("zh-TW");}else{go("zh-CN");}
+    return;
+  }
+  if(/^ja(-|$)/.test(l)){go("ja");return;}
+}
+if(!GEOIP){go("en");return;}
+var done=false;
+function byGeo(c){if(done)return;done=true;for(var k in REGIONS){if((REGIONS[k]||[]).indexOf(c)>=0){go(k);return;}}go("en");}
+try{
+  var x=new XMLHttpRequest();
+  x.open("GET",GEOIP,true);x.timeout=1500;
+  x.onload=function(){try{byGeo((JSON.parse(x.responseText).country||"").toUpperCase());}catch(e){byGeo("");}};
+  x.onerror=x.ontimeout=function(){byGeo("");};
+  x.send();
+}catch(e){byGeo("");}
+})();</script>"""
 
 
 def main():
