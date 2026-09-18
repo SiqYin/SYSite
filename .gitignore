@@ -1,0 +1,16 @@
+# 构建产物（由 GitHub Actions 部署到 Pages，不进仓库）
+dist/
+
+# 抓取缓存（本机开发时避免重复打平台接口）
+.cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini

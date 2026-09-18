@@ -1,0 +1,81 @@
+name: 更新站点
+
+# 定时扫一遍各平台，有新投稿就自动重建并上线。
+# 也可以在 Actions 页面手动触发（workflow_dispatch）。
+on:
+  schedule:
+    # 每 3 小时一次。cron 用 UTC，北京时间需 -8。
+    - cron: "23 */3 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    # 站点产物与快照由本工作流自己生成，不用因此触发重建
+    paths-ignore:
+      - "dist/**"
+      - "data/snapshot.json"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: site-update
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+
+      - name: 采集三平台数据
+        env:
+          # 可选：B 站需要登录态时填在仓库 Secrets 里（当前方案不需要）
+          BILI_SESSDATA: ${{ secrets.BILI_SESSDATA }}
+        run: python scripts/collect_all.py
+
+      - name: 处理封面资源
+        run: python scripts/build_assets.py
+
+      - name: 渲染站点
+        run: python scripts/build_site.py
+
+      - name: 字体子集化
+        run: python scripts/build_font.py
+
+      - name: 提交快照与封面（让下次构建能复用缓存、也保留内容变更历史）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A data src/assets
+          if git diff --cached --quiet; then
+            echo "内容无变化"
+          else
+            git commit -m "chore: 自动更新内容快照与资源 $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

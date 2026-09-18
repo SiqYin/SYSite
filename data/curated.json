@@ -1,0 +1,19 @@
+{
+  "_readme": [
+    "人工策展层。自动抓取永远不覆盖这里的设置。",
+    "intro  : 自定义首页简介，留空则用 B 站签名",
+    "hidden : 不想出现在站点上的内容 id（例如早期的练手投稿）",
+    "featured: 额外加进「精选项目」的内容 id 列表",
+    "内容 id 的格式是 '平台:原生id'，例如 'bilibili:BV1dF7h6sEpA'；",
+    "用 python scripts/list_ids.py 可以列出全部 id。",
+    "注：首页精选三栏（精选视频/精选音乐/精选吴语视频）由 config/site.json 的 featured 配置驱动，"
+  ],
+  "intro": "",
+  "featured": [],
+  "hidden": [],
+  "about": {
+    "_note": "「关于」页的正文，留空则用 B 站签名",
+    "title": "",
+    "body": ""
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "site": {
+    "id": "SYSite",
+    "owner": "雪螢SiqYin",
+    "ownerAlias": "SiqYin",
+    "defaultLocale": "zh-CN",
+    "enabledLocales": ["zh-CN", "zh-TW", "en", "ja"],
+    "domain": "",
+    "repository": "SiqYin/SYSite"
+  },
+  "accounts": {
+    "github": {
+      "username": "SiqYin",
+      "profileUrl": "https://github.com/SiqYin",
+      "pinnedSource": "profile-html"
+    },
+    "bilibili": {
+      "mid": "88266659",
+      "spaceUrl": "https://space.bilibili.com/88266659",
+      "sessdataEnv": "BILI_SESSDATA"
+    },
+    "netease": {
+      "artistId": "56102929",
+      "artistUrl": "https://music.163.com/#/artist?id=56102929"
+    }
+  },
+  "sources": {
+    "bilibili": {
+      "collections": true,
+      "pinnedTopArc": true,
+      "fullArchive": false
+    }
+  },
+  "featured": {
+    "_note": "首页精选三栏。wuSource 指「精选吴语视频」取哪个视频合集（按标题匹配），按播放量从高到低。",
+    "wuSource": "吴越春秋",
+    "maxItems": 20,
+    "initialItems": 3
+  },
+  "assets": {
+    "coverWidth": 640,
+    "coverQuality": 82,
+    "avatarSize": 192,
+    "maxCovers": 120
+  },
+  "fonts": {
+    "archive": "D:\\Wu\\Chrome\\lxgw-wenkai-v1.522.zip",
+    "preferred": "lxgw-wenkai-v1.522/LXGWWenKai-Regular.ttf",
+    "fallback": "lxgw-wenkai-v1.522/LXGWWenKai-Light.ttf",
+    "outputName": "lxgw-wenkai-content"
+  },
+  "collect": {
+    "cacheTtlSeconds": 21600,
+    "requestDelaySeconds": 1.1,
+    "commentDelaySeconds": 0.55,
+    "bilibiliDetailLimit": 60,
+    "neteaseSongLimit": 60
+  }
+}
