@@ -566,26 +566,69 @@ class Builder:
             return items[:limit], c
         return [], None
 
-    def feat_col(self, title, minis, source_key=None, href=None, sub=None):
-        """精选区的一栏：标题 + 可向下拉的前 20 名列表。
+    def feat_col(self, title, minis, source_key=None, href=None, sub=None, scroll=True):
+        """精选区的一栏。
 
-        source_key 不为空时，这一栏会跟随对应区块的排序实时刷新；
-        为空则是静态榜单（例如来自另一个合集的吴语精选）。
+        scroll=True  → 可向下拉的榜单（默认露 initialItems 条，最多 maxItems 条），
+                       带「向下拉」提示，跟随排序的栏还要带 data-top3 让前端实时刷新。
+        scroll=False → 固定内容，不滚动、不加下拉提示（例如人工指定的精选项目）。
         """
         cfg = self.cfg.get("featured") or {}
         limit = int(cfg.get("maxItems") or 20)
         show = int(cfg.get("initialItems") or 3)
-        max_h = show * 66 + (show - 1) * 10 + 2
         head_extra = ('<a class="mini-more" href="%s" target="_blank" rel="noopener noreferrer">%s</a>'
                       % (esc(href), esc(self.t("section.more")))) if href else ""
         attr = (' data-top3="%s" data-top3-limit="%d"' % (source_key, limit)) if source_key else ""
+        if scroll:
+            max_h = show * 66 + (show - 1) * 10 + 2
+            body = ('<div class="mini-list scroll"%s style="max-height:%dpx">%s</div>'
+                    '<p class="mini-hint">%s</p>'
+                    % (attr, max_h, "".join(minis),
+                       esc(self.t("feat.pull").replace("{n}", str(limit)))))
+        else:
+            body = '<div class="mini-list">%s</div>' % "".join(minis)
         return ('<div class="feat-col"><div class="subsection-head"><h3>%s</h3>'
-                '<span class="sub">%s</span>%s</div>'
-                '<div class="mini-list scroll"%s style="max-height:%dpx">%s</div>'
-                '<p class="mini-hint">%s</p></div>'
-                ) % (esc(title), esc(sub or self.t("feat.top20")), head_extra,
-                     attr, max_h, "".join(minis),
-                     esc(self.t("feat.pull").replace("{n}", str(limit))))
+                '<span class="sub">%s</span>%s</div>%s</div>'
+                ) % (esc(title), esc(sub or self.t("feat.top20")), head_extra, body)
+
+    def fixed_project_items(self):
+        """精选项目栏：按配置里写死的仓库顺序取（人工指定，不随排序变化）。"""
+        names = (self.cfg.get("featured") or {}).get("fixedProjects") or []
+        if not names:
+            return []
+        index = {}
+        for it in self.data()["projects"]:
+            full = (it.get("extra") or {}).get("fullName") or it["title"]
+            index[full] = it
+        out, miss = [], []
+        for n in names:
+            if n in index:
+                out.append(index[n])
+            else:
+                miss.append(n)
+        if miss:
+            print("    ! 精选项目里这几个仓库没在快照中找到：%s" % ", ".join(miss))
+        return out
+
+    def mini_project(self, it):
+        """项目用竖排小卡片：没有封面图，就用名字 + 描述 + 语言/星标/更新时间。"""
+        ex = it.get("extra") or {}
+        lang = (it.get("tags") or [None])[0]
+        stars = (it.get("stats") or {}).get("stars") or 0
+        bits = []
+        if lang:
+            bits.append(lang)
+        bits.append("★ %s" % fmt_num(stars))
+        d = fmt_date(it.get("publishedAt"))
+        if d:
+            bits.append(d)
+        return ('<a class="mini mini-plain" href="%s" target="_blank" rel="noopener noreferrer">'
+                '<span class="mini-body"><span class="mini-title">%s</span>'
+                '<span class="mini-meta">%s</span>'
+                '%s</span></a>'
+                ) % (esc(it["url"]), esc(it["title"]), esc(" · ".join(bits)),
+                     ('<span class="mini-desc">%s</span>' % esc(it.get("description") or ""))
+                     if it.get("description") else "")
 
     def featured_block(self):
         """首页精选：精选视频 / 精选音乐 / 精选吴语视频，各可下拉到前 20。
@@ -618,6 +661,13 @@ class Builder:
                 [self.mini(v, i + 1) for i, v in enumerate(wu)],
                 href=(wc or {}).get("url"),
                 sub="%s · %s" % (self.t("meta.play"), self.t("feat.top20"))))
+
+        fixed = self.fixed_project_items()
+        if fixed:
+            cols.append(self.feat_col(
+                self.t("pin.projects"),
+                [self.mini_project(p) for p in fixed],
+                sub=self.t("feat.fixed"), scroll=False))
 
         if not cols:
             return ""

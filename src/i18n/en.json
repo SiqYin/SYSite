@@ -58,6 +58,7 @@
   "feat.top20": "Top 20 by heat",
   "feat.pull": "Scroll down for the top {n}",
   "pin.projects": "Highlighted projects",
+  "feat.fixed": "Hand-picked",
   "card.pinned": "Pinned",
   "card.pinnedProject": "Highlighted",
   "card.collection": "Collection",

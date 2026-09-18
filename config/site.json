@@ -60,8 +60,17 @@
     "lyricFont": true
   },
   "featured": {
-    "_note": "首页精选三栏。wuSource 指「精选吴语视频」取哪个视频合集（按标题匹配），按播放量从高到低。",
+    "_note": [
+      "首页精选栏。wuSource 指「精选吴语视频」取哪个视频合集（按标题匹配），按播放量从高到低。",
+      "fixedProjects 是「精选项目」栏固定展示的仓库（按 fullName 匹配），",
+      "这一栏是人工指定的，不随排序或其他变化而变化。"
+    ],
     "wuSource": "吴越春秋",
+    "fixedProjects": [
+      "SiqYin/wugniu_suwu",
+      "SiqYin/wugniu_zyinzozin",
+      "SiqYin/fcitx5-android"
+    ],
     "maxItems": 20,
     "initialItems": 3
   },

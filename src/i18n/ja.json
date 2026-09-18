@@ -58,6 +58,7 @@
   "feat.top20": "人気順トップ20",
   "feat.pull": "下にスクロールで上位 {n} 件",
   "pin.projects": "注目プロジェクト",
+  "feat.fixed": "固定特選",
   "card.pinned": "ピン留め",
   "card.pinnedProject": "注目",
   "card.collection": "文集",

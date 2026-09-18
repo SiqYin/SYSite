@@ -907,6 +907,22 @@ main { position: relative; z-index: 1; }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
 
+/* 精选项目栏：没有封面图的文字版条目 */
+a.mini.mini-plain { color: inherit; text-decoration: none; }
+.mini-plain .mini-title { color: var(--blue-800); }
+.mini-plain:hover .mini-title { color: var(--blue-600); }
+.mini-desc {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  margin-top: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* ====================== 精选区三栏 ====================== */
 .featured-grid {
   display: grid;

@@ -58,6 +58,7 @@
   "feat.top20": "热度前 20",
   "feat.pull": "向下拉可看到前 {n} 个",
   "pin.projects": "精选项目",
+  "feat.fixed": "固定精选",
   "card.pinned": "置顶",
   "card.pinnedProject": "精选项目",
   "card.collection": "文集",
