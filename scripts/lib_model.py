@@ -112,11 +112,14 @@ def build_snapshot(platforms, generated_at=None, errors=None):
     all_items = []
     all_collections = []
     profiles = {}
+    player = {}
     for name, payload in platforms.items():
         all_items.extend(payload.get("items") or [])
         all_collections.extend(payload.get("collections") or [])
         if payload.get("profile"):
             profiles[name] = payload["profile"]
+        # 自建播放器所需的运行时数据（音频直链、歌词），按歌曲 id 汇总
+        player.update(payload.get("playerData") or {})
 
     all_items = dedupe(all_items)
     latest = {}
@@ -129,6 +132,7 @@ def build_snapshot(platforms, generated_at=None, errors=None):
         "schemaVersion": 1,
         "generatedAt": generated_at or iso(time.time()),
         "profiles": profiles,
+        "player": player,
         "items": sorted(all_items, key=sort_key, reverse=True),
         "collections": sorted(all_collections, key=lambda c: c.get("title") or ""),
         "platformStatus": {

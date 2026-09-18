@@ -111,6 +111,7 @@ def main():
                 "items": prev_platforms.get(name, []),
                 "collections": prev_collections.get(name, []),
                 "profile": prev_profiles.get(name),
+                "playerData": prev.get("player") or {},
                 "stale": True,
                 "error": res.get("error"),
             }
@@ -126,6 +127,7 @@ def main():
                 "ok": True, "items": prev_platforms.get(name, []),
                 "collections": prev_collections.get(name, []),
                 "profile": prev_profiles.get(name), "fetchedAt": None,
+                "playerData": prev.get("player") or {},
             }
 
     snapshot = M.build_snapshot(platforms, errors=errors)

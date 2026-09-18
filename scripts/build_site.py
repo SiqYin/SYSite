@@ -139,7 +139,15 @@ def fmt_num(n):
 
 
 def bili_embed(bvid, cid=None):
-    q = "bvid=%s&page=1&high_quality=1&danmaku=0&autoplay=0&muted=0" % quote(str(bvid))
+    """B 站官方播放器嵌入地址。
+
+    hideCoverInfo=1 会隐藏封面信息浮层（标题/UP 主那一条），
+    这样我们自己在外层加标题栏就不会和它打架。
+    注意：官方播放器**不支持 postMessage、也没有隐藏品牌 logo 的参数**，
+    中间那套播放控件没法替换，只能在外层做遮罩（见 player.videoMasks 配置）。
+    """
+    q = ("bvid=%s&page=1&high_quality=1&danmaku=0&autoplay=0&muted=0"
+         "&hideCoverInfo=1&as_wide=1" % quote(str(bvid)))
     if cid:
         q += "&cid=%s" % quote(str(cid))
     return "https://player.bilibili.com/player.html?" + q
@@ -213,21 +221,21 @@ class Builder:
         meta = " · ".join(bits)
         dur = fmt_duration(it.get("durationSec"))
         cover = it.get("cover")
-        if kind == "audio":
-            embed = (it.get("embed") or {}).get("src", "")
-        else:
-            embed = bili_embed((it.get("embed") or {}).get("bvid") or it["nativeId"],
-                               (it.get("embed") or {}).get("cid"))
+        year = fmt_date(it.get("publishedAt"))[:4]
+        cls = "card rise" if reveal else "card"
         img = ('<img src="%s%s" alt="%s" loading="lazy" decoding="async">'
                % (self.prefix, esc(cover), esc(it["title"])) if cover else "")
         badge_html = '<span class="badge">%s</span>' % esc(badge) if badge else ""
         dur_html = '<span class="dur">%s</span>' % esc(dur) if (dur and not square) else ""
         sub_html = '<div class="card-sub">%s</div>' % esc(sub) if sub else ""
-        cls = "card rise" if reveal else "card"
-        year = fmt_date(it.get("publishedAt"))[:4]
         if kind == "audio":
-            f_attrs = ' data-f-year="%s" data-f-album="%s"' % (esc(year), esc(sub or ""))
+            embed = (it.get("embed") or {}).get("src", "")
+            song_id = str((it.get("embed") or {}).get("songId") or "")
+            f_attrs = ' data-f-year="%s" data-f-album="%s" data-song="%s"' % (
+                esc(year), esc(sub or ""), esc(song_id))
         else:
+            embed = bili_embed((it.get("embed") or {}).get("bvid") or it["nativeId"],
+                               (it.get("embed") or {}).get("cid"))
             f_attrs = ' data-f-year="%s" data-f-coll="%s"' % (esc(year), esc("|".join(it.get("collections") or [])))
         return (
             '<article class="%s" data-delay="%d" data-play="1" data-kind="%s" tabindex="0" role="button" '
@@ -388,16 +396,22 @@ class Builder:
         return opts
 
     def more_button(self, show, total):
+        """就地展开更多（不跳页）。用次要样式，和下面的跳转按钮区分开。"""
         if total <= show:
             return ""
-        return ('<div style="text-align:center;margin:22px 0 4px;">'
-                '<button class="pill-link" data-more-btn="%d">%s</button></div>'
-                % (show, esc(self.t("section.more"))))
+        return ('<div class="more-row"><button class="pill-link ghost" data-more-btn="%d">'
+                '<span data-more-label>%s</span>'
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+                'stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'
+                "</button></div>") % (show, esc(self.t("more.expand")))
 
     def more_link(self, page):
-        return ('<div style="text-align:center;margin:22px 0 4px;">'
-                '<a class="pill-link" href="%s">%s</a></div>'
-                % (self.url(page), esc(self.t("section.more"))))
+        """跳转到该内容的独立页面。文案带上下文的宾语，避免和上面的展开按钮混淆。"""
+        return ('<div class="more-row more-goto">'
+                '<a class="pill-link primary arrow" href="%s">%s'
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+                'stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'
+                "</a></div>") % (self.url(page), esc(self.t("more.all.%s" % page)))
 
     def section(self, key, cards, cls="", sub="", reveal=0, right="", sortable="",
                 filters="", filterable="", tail=""):
@@ -473,6 +487,17 @@ class Builder:
                 "default": js(self.cfg["site"]["defaultLocale"]),
             }
 
+        # 播放器配置
+        pl = self.cfg.get("player") or {}
+        player_cfg = json.dumps({"ownAudio": bool(pl.get("ownAudio", True))},
+                                ensure_ascii=False, separators=(",", ":"))
+        # 歌词字体是可选的：这几首歌的歌词里吴语方言字、拼音标注很多，
+        # 用霞鹜文楷单独切一份要 600KB 左右（只在点开播放器时才下载）。
+        # 关掉就把歌词回落到主字体 + 系统字体，省掉这个按需体积。
+        if not pl.get("lyricFont", True):
+            head_extra = ('<style>.op-lyrics,.op-line,.op-txt,.op-tr{font-family:var(--font)!important}</style>'
+                          + head_extra)
+
         return SHELL % {
             "lang": esc(self.locale), "prefix": self.prefix, "title": esc(title),
             "desc": esc(self.t("site.desc")), "brand": esc(self.t("site.name")),
@@ -482,6 +507,7 @@ class Builder:
             "head_extra": head_extra,
             "og_url": esc(og_url), "canonical": esc(canon), "alt_links": alts,
             "site_url": esc(base), "locale": esc(self.locale), "page_key": esc(page),
+            "player_cfg": player_cfg,
             "footer_updated": esc("%s %s" % (self.t("footer.updated"),
                                              fmt_date(self.snap.get("generatedAt")))),
             "footer_note": esc(self.t("footer.generated")), "footer_status": "".join(status),
@@ -1011,7 +1037,7 @@ SHELL = """<!DOCTYPE html>
 
 <div class="toast" id="toast"></div>
 
-<script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";</script>
+<script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";window.SYS_PREFIX="%(prefix)s";window.SYS_PLAYER=%(player_cfg)s;</script>
 <script src="%(prefix)sassets/js/app.js"></script>
 </body>
 </html>
@@ -1099,6 +1125,18 @@ def main():
     shutil.copy(SNAPSHOT, os.path.join(DIST, "snapshot.json"))
     with open(os.path.join(DIST, "robots.txt"), "w", encoding="utf-8") as f:
         f.write("User-agent: *\nAllow: /\n")
+
+    # 播放器运行时数据（音频直链 + 动态歌词），独立成一个文件按需加载，
+    # 不塞进页面，避免四个语言版本各背一份。
+    player = shared["snap"].get("player") or {}
+    pd = {k: v for k, v in player.items() if v.get("u") or v.get("l")}
+    with open(os.path.join(DIST, "assets", "player-data.json"), "w", encoding="utf-8") as f:
+        json.dump(pd, f, ensure_ascii=False, separators=(",", ":"))
+    psz = os.path.getsize(os.path.join(DIST, "assets", "player-data.json"))
+    print("  播放器数据：%d 首，%.0f KB（直链 %d 首 / 歌词 %d 首）"
+          % (len(pd), psz / 1024,
+             sum(1 for v in pd.values() if v.get("u")),
+             sum(1 for v in pd.values() if v.get("l"))))
 
     total = nfiles = 0
     for dp, dn, fn in os.walk(DIST):

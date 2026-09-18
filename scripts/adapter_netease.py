@@ -72,6 +72,48 @@ def fetch_comment_counts(client, ids, delay=0.6):
     return out
 
 
+def fetch_audio_urls(client, ids):
+    """批量取音频直链（自建播放器用）。
+
+    实测一次塞全部 43 个 id 也没问题（42/43 有直链，缺的通常是伴奏或受限曲目）。
+    注意两点：
+    - 这个接**没有 CORS 头**，所以只能在构建期取，浏览器里没法实时刷新；
+    - 链接带签名的时效（路径里含生成时间），所以每次构建都会重新取一遍。
+    """
+    out = {}
+    if not ids:
+        return out
+    try:
+        d = client.get_json(
+            "https://music.163.com/api/song/enhance/player/url?ids=[%s]&br=320000"
+            % ",".join(str(x) for x in ids), referer=REF, timeout=60)
+    except Exception:  # noqa: BLE001
+        return out
+    for it in d.get("data") or []:
+        u = it.get("url")
+        if u:
+            out[str(it.get("id"))] = {"url": u, "br": it.get("br"), "size": it.get("size")}
+    return out
+
+
+def fetch_lyrics(client, ids, delay=0.45):
+    """逐首取歌词（LRC，带时间戳）+ 翻译歌词。用于自建播放器的动态歌词。"""
+    out = {}
+    for i, sid in enumerate(ids):
+        try:
+            d = client.get_json(
+                "https://music.163.com/api/song/lyric?id=%s&lv=1&kv=1&tv=-1" % sid, referer=REF)
+            lrc = ((d.get("lrc") or {}).get("lyric") or "").strip()
+            tr = ((d.get("tlyric") or {}).get("lyric") or "").strip()
+            if lrc:
+                out[str(sid)] = {"lrc": lrc, "trans": tr or None}
+        except Exception:  # noqa: BLE001
+            pass
+        if delay and i < len(ids) - 1:
+            time.sleep(delay)
+    return out
+
+
 def collect(client, cfg, verbose=True):
     artist_id = cfg["accounts"]["netease"]["artistId"]
     limit = cfg["collect"]["neteaseSongLimit"]
@@ -148,8 +190,25 @@ def collect(client, cfg, verbose=True):
     # 热度：评论数
     comments = fetch_comment_counts(client, [s["id"] for s in picked],
                                     delay=cfg["collect"].get("commentDelaySeconds", 0.6))
+    # 自建播放器所需：音频直链 + 动态歌词
+    audio = fetch_audio_urls(client, [s["id"] for s in picked])
+    lyrics = fetch_lyrics(client, [s["id"] for s in picked],
+                          delay=cfg["collect"].get("lyricDelaySeconds", 0.45))
+    result["playerData"] = {}
+    for s in picked:
+        sid = str(s["id"])
+        au = audio.get(sid) or {}
+        ly = lyrics.get(sid) or {}
+        if au or ly:
+            result["playerData"][sid] = {
+                "u": au.get("url"),
+                "b": au.get("br"),
+                "l": ly.get("lrc"),
+                "t": ly.get("trans"),
+            }
     if verbose:
-        print("    歌曲详情 %d 首 / 评论数 %d 首" % (len(details), len(comments)))
+        print("    歌曲详情 %d 首 / 评论数 %d 首 / 直链 %d 首 / 歌词 %d 首"
+              % (len(details), len(comments), len(audio), len(lyrics)))
 
     for s in picked:
         sid = s.get("id")

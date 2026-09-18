@@ -47,6 +47,18 @@
       "fullArchive": false
     }
   },
+  "player": {
+    "_note": [
+      "自有播放器。ownAudio=true 时音频用原生 audio + 自有界面（海报 + 动态歌词）：",
+      "音频直链与歌词在构建期取好、放在 assets/player-data.json，只在点击播放时才加载；",
+      "歌词用字单独切了一份字体，同样只在播放器打开时才下载。",
+      "取不到直链或播放报错会自动回落官方播放器。",
+      "视频不做处理：官方播放器是跨域 iframe，既不能读它的 DOM、也不支持 postMessage，",
+      "没有隐藏品牌的参数，遮罩只能遮出个半成品，所以直接保持官方嵌入原样。"
+    ],
+    "ownAudio": true,
+    "lyricFont": true
+  },
   "featured": {
     "_note": "首页精选三栏。wuSource 指「精选吴语视频」取哪个视频合集（按标题匹配），按播放量从高到低。",
     "wuSource": "吴越春秋",
