@@ -243,9 +243,10 @@ class Builder:
             embed = bili_embed((it.get("embed") or {}).get("bvid") or it["nativeId"],
                                (it.get("embed") or {}).get("cid"))
             f_attrs = ' data-f-year="%s" data-f-coll="%s"' % (esc(year), esc("|".join(it.get("collections") or [])))
+        qr = "assets/qr/" + self.qr_name(it)
         return (
             '<article class="%s" data-delay="%d" data-play="1" data-kind="%s" tabindex="0" role="button" '
-            'data-ts="%d" data-heat="%d"%s '
+            'data-ts="%d" data-heat="%d" data-qr="%s"%s '
             'data-title="%s" data-meta="%s" data-embed="%s" data-source="%s" '
             'data-source-label="%s" data-platform="%s">'
             '<div class="card-cover%s">%s%s%s'
@@ -253,12 +254,17 @@ class Builder:
             '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></span></div>'
             '<div class="card-body"><h3 class="card-title">%s</h3>%s'
             '<div class="card-meta"><span>%s</span></div></div></article>'
-        ) % (cls, delay, kind, to_epoch(it.get("publishedAt")), int(heat or 0), f_attrs,
+        ) % (cls, delay, kind, to_epoch(it.get("publishedAt")), int(heat or 0), esc(qr), f_attrs,
              esc(it["title"]), esc(meta), esc(embed), esc(it["url"]),
              esc(self.t("player.openSourceAudio" if kind == "audio" else "player.openSource")),
              PLATFORM_LABEL.get(it["platform"], ""),
              " square" if square else "", img, badge_html, dur_html,
              esc(it["title"]), sub_html, esc(meta))
+
+    def qr_name(self, it):
+        """二维码文件名，与构建期生成的 PNG 保持一致。"""
+        import re as _re
+        return "%s-%s.png" % (it["platform"], _re.sub(r"[^A-Za-z0-9_.-]", "_", str(it["nativeId"]))[:60])
 
     def mini(self, it, rank):
         kind = "audio" if it["type"] == "audio" else "video"
@@ -284,13 +290,14 @@ class Builder:
         embed = ((it.get("embed") or {}).get("src", "") if kind == "audio"
                  else bili_embed((it.get("embed") or {}).get("bvid") or it["nativeId"],
                                  (it.get("embed") or {}).get("cid")))
+        qr = "assets/qr/" + self.qr_name(it)
         return (
-            '<button class="mini" type="button" data-play="1" data-kind="%s"%s '
+            '<button class="mini" type="button" data-play="1" data-kind="%s" data-qr="%s"%s '
             'data-title="%s" data-meta="%s" data-embed="%s" data-source="%s" '
             'data-source-label="%s" data-platform="%s">%s'
             '<span class="mini-body"><span class="mini-title"><span class="mini-rank%s">%d</span>%s</span>'
             '<span class="mini-meta">%s</span></span></button>'
-          ) % (kind, song_attr, esc(it["title"]), esc(" · ".join(bits)), esc(embed), esc(it["url"]),
+          ) % (kind, esc(qr), song_attr, esc(it["title"]), esc(" · ".join(bits)), esc(embed), esc(it["url"]),
                esc(self.t("player.openSourceAudio" if kind == "audio" else "player.openSource")),
                PLATFORM_LABEL.get(it["platform"], ""), thumb, cls, rank, esc(it["title"]),
                esc(" · ".join(bits)))
@@ -605,6 +612,22 @@ class Builder:
                 '<span class="sub">%s</span>%s</div>%s</div>'
                 ) % (esc(title), esc(sub or self.t("feat.top20")), head_extra, body)
 
+    def wuyue_music_items(self, limit=20):
+        """精选吴语音乐：站内所有标题含「吴语 / 吳語」的音乐，按投稿时间倒序，取前 limit 条。
+
+        随构建自动刷新（新收录的吴语音乐会自动进榜；榜单来自快照，所以每次重建都会重算。
+        """
+        keys = ("吴语", "吳語")
+        items = []
+        for i in self.data()["songs"]:
+            hay = " ".join([(i.get("title") or ""), " ".join(i.get("tags") or []),
+                            ((i.get("extra") or {}).get("album") or "")
+                            ])
+            if any(k in hay for k in keys):
+                items.append(i)
+        items.sort(key=lambda i: (i.get("publishedAt") or ""), reverse=True)
+        return items[:limit]
+
     def fixed_project_items(self):
         """精选项目栏：按配置里写死的仓库顺序取（人工指定，不随排序变化）。"""
         names = (self.cfg.get("featured") or {}).get("fixedProjects") or []
@@ -675,6 +698,13 @@ class Builder:
                 [self.mini(v, i + 1) for i, v in enumerate(wu)],
                 href=(wc or {}).get("url"),
                 sub="%s · %s" % (self.t("meta.play"), self.t("feat.top20"))))
+
+        wm = self.wuyue_music_items(limit)
+        if wm:
+            cols.append(self.feat_col(
+                self.t("featured.wuyue_music"),
+                [self.mini(m, i + 1) for i, m in enumerate(wm)],
+                sub=self.t("feat.fixed"), scroll=False))
 
         fixed = self.fixed_project_items()
         if fixed:
@@ -1064,6 +1094,13 @@ SHELL = """<!DOCTYPE html>
         <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
       </svg>
     </a>
+    <button class="icon-btn bgm-btn" id="bgm-btn" type="button" title="BGM">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18V5l12-2v13"/>
+        <circle cx="6" cy="18" r="3"/>
+        <circle cx="18" cy="16" r="3"/>
+      </svg>
+    </button>
     <div class="lang">
       <button class="lang-btn" id="lang-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
@@ -1096,6 +1133,41 @@ SHELL = """<!DOCTYPE html>
     </div>
     <div class="modal-stage" id="m-stage"></div>
     <div class="modal-foot" id="m-foot"></div>
+  </div>
+</div>
+
+<div class="bgm-panel" id="bgm-panel" role="dialog" aria-modal="false" aria-label="BGM playlist">
+  <div class="bgp-head">
+    <span class="bgp-title" id="bgp-title">BGM</span>
+    <button class="bgp-x" id="bgm-close" type="button" aria-label="close">&times;</button>
+  </div>
+  <p class="bgp-hint" id="bgp-hint"></p>
+  <ul class="bgm-list" id="bgm-list"></ul>
+  <div class="bgp-bar">
+    <span class="bgp-now" id="bgm-now"></span>
+    <span class="op-seek" id="bgm-seek">
+      <span class="op-track"><span class="op-fill" id="bgm-fill"></span></span>
+      <span class="op-knob" id="bgm-knob"></span>
+    </span>
+    <div class="bgp-btns">
+      <button class="op-btn" id="bgm-prev" type="button" aria-label="prev"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM20 6v12l-9-6z"/></svg></button>
+      <button class="op-btn main" id="bgm-toggle" type="button" aria-label="play">&#9654;</button>
+      <button class="op-btn" id="bgm-next" type="button" aria-label="next"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM4 6l9 6-9 6z"/></svg></button>
+      <button class="op-btn wide" id="bgm-mode" type="button" title="mode"></button>
+      <button class="op-btn" id="bgm-off" type="button" title="on/off">&#9211;</button>
+    </div>
+  </div>
+</div>
+
+<div class="share-modal" id="share-modal" role="dialog" aria-modal="true">
+  <div class="sm-box">
+    <div class="sm-head">
+      <span id="sm-title"></span>
+      <button class="sm-x" id="share-x" type="button" aria-label="close">&times;</button>
+    </div>
+    <img id="share-img" alt="">
+    <p class="sm-hint" id="sm-hint"></p>
+    <a class="pill-link primary" id="share-dl" download></a>
   </div>
 </div>
 
@@ -1202,6 +1274,46 @@ def main():
         print("  字体缓存破版已应用（woff2 查询串带哈希）")
     except Exception as exc:  # noqa: BLE001
         print("  ! 字体缓存破版跳过：%s" % exc)
+
+    # 分享卡用的二维码：构建期生成，运行时只管拼图
+    qr_dir = os.path.join(DIST, "assets", "qr")
+    os.makedirs(qr_dir, exist_ok=True)
+    qr_count = 0
+    if segno is not None:
+        for it in (shared["snap"].get("items") or []):
+            url = it.get("url") or ""
+            if not url:
+                continue
+            if (it.get("extra") or {}).get("isAlbum"):
+                continue
+            name = "%s-%s.png" % (it["platform"], re.sub(r"[^A-Za-z0-9_.-]", "_", str(it["nativeId"]))[:60])
+            try:
+                segno.make(url, error="m").save(os.path.join(qr_dir, name), scale=4, border=1)
+                qr_count += 1
+            except Exception:  # noqa: BLE001
+                continue
+        print("  二维码 %d 张" % qr_count)
+    else:
+        print("  ! 未安装 segno，跳过二维码生成（分享卡将不带二维码）")
+
+    # BGM 用的曲目元数据（构建期生成，运行时按 id 查表；避免前端到处扫描 DOM）
+    try:
+        bgm = {}
+        for it in (shared["snap"].get("items") or []):
+            if it.get("type") != "audio":
+                continue
+            if (it.get("extra") or {}).get("isAlbum"):
+                continue
+            sid = str((it.get("embed") or {}).get("songId") or "")
+            if not sid:
+                continue
+            cover = it.get("cover")
+            bgm[sid] = {"t": it.get("title") or "", "c": cover or "", "a": ((it.get("extra") or {}).get("album") or "")
+            }
+        open(os.path.join(DIST, "assets", "bgm-meta.json"), "w", encoding="utf-8").write(json.dumps(bgm, ensure_ascii=False, separators=(",", ":")))
+        print("  BGM 曲目表 %d 首" % len(bgm))
+    except Exception as exc:  # noqa: BLE001
+        print("  ! BGM 曲目表生成失败：%s" % exc)
 
     shutil.copy(SNAPSHOT, os.path.join(DIST, "snapshot.json"))
     with open(os.path.join(DIST, "robots.txt"), "w", encoding="utf-8") as f:

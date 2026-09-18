@@ -1326,3 +1326,111 @@ footer {
   .section { padding: 34px 0 4px; }
   .modal-head, .modal-stage, .modal-foot { padding-left: 16px; padding-right: 16px; }
 }
+
+/* ====================== BGM：右上角管理按钮与播放单面板 ====================== */
+.bgm-btn.off { opacity: .45; }
+.bgm-btn.playing svg { color: var(--blue-600); }
+
+.bgm-panel {
+  position: fixed;
+  right: 18px;
+  top: 64px;
+  z-index: 190;
+  width: 330px;
+  max-width: calc(100vw - 36px);
+  background: var(--surface);
+  border: 0.5px solid var(--border, var(--line));
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  padding: 14px 16px 12px;
+  opacity: 0;
+  transform: translateY(-10px) scale(.98);
+  pointer-events: none;
+  transition: opacity var(--t-mid), transform var(--t-mid);
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+}
+.bgm-panel.open { opacity: 1; transform: none; pointer-events: auto; }
+.bgp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.bgp-title { font-size: 15px; font-weight: 500; color: var(--blue-800); }
+.bgp-x {
+  margin-left: auto; width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  font-size: 17px; line-height: 1; cursor: pointer;
+}
+.bgp-hint { margin: 0 0 8px; font-size: 12px; color: var(--faint); }
+.bgm-list {
+  list-style: none; margin: 0 0 10px; padding: 2px; overflow-y: auto; flex: 1;
+  scrollbar-width: thin;
+}
+.bgm-list li {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 8px; border-radius: var(--r-md);
+  background: var(--surface-2); margin-bottom: 6px;
+  cursor: default;
+  transition: background var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+.bgm-list li.on { background: rgba(41, 128, 185, .12); }
+.bgm-list li.dragging {
+  opacity: .9; transform: scale(1.02);
+  box-shadow: var(--shadow-2);
+  background: var(--surface);
+}
+.bgm-handle {
+  flex: none; font-size: 14px; color: var(--faint); cursor: grab;
+  padding: 0 2px; touch-action: none;
+}
+.bgm-name {
+  flex: 1; min-width: 0; font-size: 13px; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bgm-name em { font-style: normal; font-size: 11.5px; color: var(--faint); margin-left: 6px; }
+.bgm-del {
+  flex: none; width: 22px; height: 22px; border-radius: 50%; border: 0;
+  background: transparent; color: var(--faint); font-size: 15px; cursor: pointer;
+}
+.bgm-del:hover { background: var(--danger, #c0392b); color: #fff; }
+.bgm-empty { background: transparent !important; color: var(--faint); font-size: 12.5px; justify-content: center; }
+
+.bgp-bar { border-top: 1px solid var(--line-soft); padding-top: 9px; }
+.bgp-now {
+  display: block; font-size: 12.5px; color: var(--blue-800); margin-bottom: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bgp-btns { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.op-btn.wide { width: auto; min-width: 52px; padding: 0 10px; border-radius: var(--r-pill); font-size: 11.5px; color: var(--muted); }
+.op-btn.wide svg { display: none; }
+
+/* ====================== 分享小卡弹窗 ====================== */
+.share-modal {
+  position: fixed; inset: 0; z-index: 260;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  background: rgba(15, 47, 71, .5);
+  backdrop-filter: blur(5px);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--t-mid);
+}
+.share-modal.open { opacity: 1; pointer-events: auto; }
+.sm-box {
+  width: 100%; max-width: 380px;
+  max-height: 86vh; overflow-y: auto;
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  padding: 16px;
+  box-shadow: var(--shadow-3);
+  text-align: center;
+}
+.sm-head { display: flex; align-items: center; margin-bottom: 10px; }
+.sm-head span { font-size: 15px; font-weight: 500; color: var(--blue-800); }
+.sm-x {
+  margin-left: auto; width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  font-size: 18px; line-height: 1; cursor: pointer;
+}
+.sm-box img {
+  width: 100%; border-radius: var(--r-md); display: block;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: default;
+}
+.sm-hint { margin: 10px 0 12px; font-size: 12.5px; color: var(--faint); line-height: 1.6; }

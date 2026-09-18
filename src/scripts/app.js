@@ -416,6 +416,7 @@
 
   function load(item) {
     currentSong = item.song;
+    currentItem = item;
     var d = AUDIO[item.song] || {};
     var q = d.q || {};
     mTitle.textContent = item.title;
@@ -483,6 +484,11 @@
     }
     paintVol();
     mFoot.innerHTML = buildFoot(item);
+
+    var sh = document.getElementById("btn-share");
+    if (sh) sh.addEventListener("click", function () { shareCardOf(item); });
+    var ba = document.getElementById("btn-bgm-add");
+    if (ba) ba.addEventListener("click", function () { bgmAdd(item.song); });
   }
 
   function paintQ() {
@@ -517,6 +523,11 @@
            ' <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>';
     }
     if (item.platform) s += '<span class="mnote">' + esc(item.platform) + "</span>";
+    // 分享：生成带二维码的分享小卡（观看/收听按钮右侧）
+    s += '<button class="pill-link" id="btn-share" type="button">' + esc(t("share.title")) + "</button>";
+    if (item.song) {
+      s += '<button class="pill-link" id="btn-bgm-add" type="button">' + esc(t("bgm.add")) + "</button>";
+    }
     return s;
   }
 
@@ -633,6 +644,7 @@
         var im = el.querySelector(".card-cover img") || el.querySelector(".mini-thumb img");
         return im ? im.getAttribute("src") : "";
       })(),
+      qr: el.getAttribute("data-qr") || "",
       copy: el.getAttribute("data-copy") === "1"
     };
   }
@@ -1059,8 +1071,477 @@
     }
   }
 
+
+  /* ================================================================
+     分享小卡：Canvas 合成封面 + 标题 + 平台 + 二维码，长按保存到相册。
+     二维码是构建期生成好的 PNG，运行时只管拼图，不引第三方库。
+     ================================================================ */
+  function currentPayload() {
+    return currentItem || null;
+  }
+
+  // 当前播放/展示的条目（弹窗打开时记录）
+  var currentItem = null;
+
+  function shareCardOf(item) {
+    if (!item) return;
+    var W = 640, H = 900;
+    var cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    var g = cv.getContext("2d");
+
+    // 背景
+    var grd = g.createLinearGradient(0, 0, W, H);
+    grd.addColorStop(0, "#f2f8fd");
+    grd.addColorStop(1, "#dce9f5");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, W, H);
+
+    // 顶部站点名
+    g.fillStyle = "#1a5276";
+    g.font = "500 30px " + getComputedStyle(document.body).fontFamily;
+    g.textAlign = "center";
+    g.fillText(t("site.name"), W / 2, 76);
+
+    // 封面
+    var cx = 100, cy = 110, cw = 440, ch = 440;
+    function drawCover(img) {
+      try {
+        var r = Math.max(cw / img.width, ch / img.height);
+        var dw = img.width * r, dh = img.height * r;
+        g.save();
+        g.beginPath();
+        roundRectPath(g, cx, cy, cw, ch, 24);
+        g.clip();
+        g.drawImage(img, cx + (cw - dw) / 2, cy + (ch - dh) / 2, dw, dh);
+        g.restore();
+      } catch (e) {}
+    }
+    g.fillStyle = "#e3eef8";
+    roundRect(g, cx, cy, cw, ch, 24);
+    g.fill();
+    if (item.cover) {
+      var im = new Image();
+      im.crossOrigin = "anonymous";
+      im.onload = function () { drawCover(im); finish(); };
+      im.onerror = function () { finish(); };
+      im.src = item.cover;
+    } else {
+      finish();
+    }
+
+    var done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      // 标题（最多两行）
+      g.fillStyle = "#1a2a3a";
+      g.font = "500 30px " + getComputedStyle(document.body).fontFamily;
+      g.textAlign = "center";
+      var lines = wrapText(g, item.title || "", W - 120);
+      var ly = cy + ch + 62;
+      for (var i = 0; i < Math.min(lines.length, 3); i++) {
+        g.fillText(lines[i], W / 2, ly + i * 44);
+      }
+      // 副标题：专辑 + 平台
+      g.fillStyle = "#5b7f9e";
+      g.font = "400 22px " + getComputedStyle(document.body).fontFamily;
+      var sub = [item.album, item.platform].filter(Boolean).join(" · ");
+      g.fillText(sub, W / 2, ly + Math.min(lines.length, 3) * 44 + 30);
+      // 二维码
+      var qy = H - 250;
+      g.fillStyle = "#ffffff";
+      roundRect(g, W / 2 - 110, qy - 14, 220, 220, 18);
+      g.fill();
+      if (item.qr) {
+        var q = new Image();
+        q.onload = function () {
+          try { g.drawImage(q, W / 2 - 82, qy, 164, 164); } catch (e) {}
+          tail();
+        };
+        q.onerror = tail;
+        q.src = (window.SYS_PREFIX || "") + item.qr;
+      } else {
+        tail();
+      }
+      function tail() {
+        g.fillStyle = "#5b7f9e";
+        g.font = "400 20px " + getComputedStyle(document.body).fontFamily;
+        g.fillText(t("share.scan"), W / 2, H - 30);
+        showShareModal(cv.toDataURL("image/png"), item);
+      }
+    }
+  }
+
+  function roundRectPath(g, x, y, w, h, r) {
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r);
+    g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r);
+    g.arcTo(x, y, x + w, y, r);
+    g.closePath();
+    return g;
+  }
+  function roundRect(g, x, y, w, h, r) { return roundRectPath(g, x, y, w, h, r); }
+
+  function wrapText(g, text, maxW) {
+    var out = [], cur = "";
+    for (var i = 0; i < text.length; i++) {
+      var test = cur + text[i];
+      if (g.measureText(test).width > maxW && cur) { out.push(cur); cur = text[i]; } else { cur = test; }
+    }
+    if (cur) out.push(cur);
+    return out;
+  }
+
+  function showShareModal(dataUrl, item) {
+    var box = document.getElementById("share-modal");
+    if (!box) return;
+    var img = document.getElementById("share-img");
+    if (img) img.src = dataUrl;
+    var a = document.getElementById("share-dl");
+    if (a) {
+      a.href = dataUrl;
+      a.download = (item && item.title ? item.title.slice(0, 40) : "share") + ".png";
+    }
+    box.classList.add("open");
+  }
+
+  /* ================================================================
+     BGM 系统：独立音频通道 + 右上角管理面板 + 播放单（可拖拽排序）+ 四种播放顺序
+     ================================================================ */
+  var BGM_DEFAULT = ["3397931174", "3391836260", "3346195311", "2105851215", "2742796005"];
+  var bgm = {
+    audio: null,
+    meta: {},          // songId -> {t, c, a}
+    list: [],          // 播放单 [{song, t, c, a}]
+    idx: 0,
+    mode: "shuffle",   // shuffle | order | reverse | loop
+    queue: [],         // 第一轮乱序队列
+    firstRoundDone: false,
+    enabled: true
+  };
+
+  function bgmAsset(name) { return (window.SYS_PREFIX || "") + "assets/" + name; }
+
+  function loadBgmMeta(cb) {
+    if (Object.keys(bgm.meta).length) { cb(); return; }
+    fetch(bgmAsset("bgm-meta.json")).then(function (r) { return r.json(); }).then(function (j) {
+      bgm.meta = j || {};
+      cb();
+    }).catch(function () { cb(); });
+  }
+
+  function bgmEntry(song) {
+    var m = bgm.meta[song] || {};
+    return { song: song, t: m.t || song, c: m.c || "", a: m.a || "" };
+  }
+
+  function initBgm() {
+    loadBgmMeta(function () {
+      var stored = null;
+      try { stored = JSON.parse(localStorage.getItem("sys-bgm-list") || "null"); } catch (e) {}
+      var seeds = (stored && stored.length) ? stored : BGM_DEFAULT;
+      bgm.list = seeds.map(bgmEntry).filter(function (x) { return x.song; });
+      if (!bgm.list.length) bgm.list = BGM_DEFAULT.map(bgmEntry);
+      try {
+        var m = localStorage.getItem("sys-bgm-mode");
+        if (m) bgm.mode = m;
+      } catch (e) {}
+      try {
+        bgm.enabled = localStorage.getItem("sys-bgm-off") !== "1";
+      } catch (e) {}
+
+      if (!bgm.audio) {
+        bgm.audio = document.createElement("audio");
+        bgm.audio.preload = "auto";
+        bgm.audio.volume = 0.55;
+        bgm.audio.addEventListener("ended", function () { bgmNext(true); });
+        bgm.audio.addEventListener("timeupdate", bgmPaintProgress);
+        bgm.audio.addEventListener("loadedmetadata", bgmPaintProgress);
+        document.body.appendChild(bgm.audio);
+      }
+      var pt = document.getElementById("bgp-title");
+      if (pt) pt.textContent = t("bgm.title");
+      var ph = document.getElementById("bgp-hint");
+      if (ph) ph.textContent = t("bgm.drag");
+      var st = document.getElementById("sm-title");
+      if (st) st.textContent = t("share.title");
+      var sh2 = document.getElementById("sm-hint");
+      if (sh2) sh2.textContent = t("share.hint");
+      var dl = document.getElementById("share-dl");
+      if (dl) dl.textContent = t("share.save");
+      var sx = document.getElementById("share-x");
+      if (sx) sx.addEventListener("click", function () {
+        var b = document.getElementById("share-modal");
+        if (b) b.classList.remove("open");
+      });
+
+      renderBgmList();
+      buildBgmQueue();
+      bindBgmUi();
+      if (bgm.enabled) tryAutoStart();
+      paintBgmBtn();
+    });
+  }
+
+  // 第一轮：默认 5 首乱序；之后沿播放单顺序循环
+  function buildBgmQueue() {
+    if (bgm.mode === "shuffle") {
+      var arr = bgm.list.slice();
+      for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+      }
+      bgm.queue = arr;
+      bgm.idx = 0;
+    } else if (bgm.mode === "reverse") {
+      bgm.queue = bgm.list.slice().reverse();
+      bgm.idx = 0;
+    } else {
+      bgm.queue = bgm.list.slice();
+      bgm.idx = 0;
+    }
+    bgm.firstRoundDone = false;
+  }
+
+  function bgmCurrent() {
+    return bgm.queue[bgm.idx] || bgm.list[0] || null;
+  }
+
+  function bgmPlayAt(i) {
+    var cur = bgm.queue[i];
+    if (!cur) return;
+    bgm.idx = i;
+    var a = bgm.audio;
+    if (!a) return;
+    // 直链从播放器数据取（与站内播放同一来源；没有则跳过这首
+    if (!PLAYER_DATA) {
+      fetch(bgmAsset("player-data.json")).then(function (r) { return r.json(); }).then(function (j) {
+        PLAYER_DATA = j || {};
+        bgmPlayAt(i);
+      }).catch(function () {});
+      return;
+    }
+    var d = PLAYER_DATA[cur.song] || {};
+    var q = d.q || {};
+    var url = q["320"] || q["192"] || q["128"] || q.lossless;
+    if (!url) { bgmNext(true); return; }
+    a.src = url;
+    a.load();
+    a.play().catch(function () {});
+    paintBgmActive();
+    paintBgmBar();
+  }
+
+  function bgmNext(auto) {
+    if (bgm.mode === "loop" && auto) { bgmPlayAt(bgm.idx); return; }
+    bgm.idx += 1;
+    if (bgm.idx >= bgm.queue.length) {
+      // 第一轮走完 → 之后沿播放单顺序循环
+      bgm.idx = 0;
+      if (bgm.mode === "shuffle") {
+        bgm.queue = bgm.list.slice();
+        if (bgm.mode === "reverse") bgm.queue = bgm.list.slice().reverse();
+      }
+    }
+    bgmPlayAt(bgm.idx);
+  }
+
+  function bgmPrev() {
+    bgm.idx -= 1;
+    if (bgm.idx < 0) bgm.idx = bgm.queue.length - 1;
+    bgmPlayAt(bgm.idx);
+  }
+
+  function bgmToggle() {
+    var a = bgm.audio;
+    if (!a) return;
+    if (a.paused) { if (!a.src) bgmPlayAt(bgm.idx); else a.play().catch(function () {}); }
+    else a.pause();
+    paintBgmBar();
+  }
+
+  function tryAutoStart() {
+    bgmPlayAt(0);
+    // 浏览器常阻止带声音的自动播放：首次交互时补一次
+    var once = function () {
+      document.removeEventListener("pointerdown", once, true);
+      document.removeEventListener("keydown", once, true);
+      var a = bgm.audio;
+      if (a && a.paused) { a.play().catch(function () {}); }
+    };
+    document.addEventListener("pointerdown", once, true);
+    document.addEventListener("keydown", once, true);
+  }
+
+  function bindBgmUi() {
+    var btn = document.getElementById("bgm-btn");
+    if (btn) btn.addEventListener("click", function () {
+      var p = document.getElementById("bgm-panel");
+      if (p) p.classList.toggle("open");
+    });
+    var close = document.getElementById("bgm-close");
+    if (close) close.addEventListener("click", function () {
+      var p = document.getElementById("bgm-panel");
+      if (p) p.classList.remove("open");
+    });
+    var prev = document.getElementById("bgm-prev");
+    if (prev) prev.addEventListener("click", bgmPrev);
+    var next = document.getElementById("bgm-next");
+    if (next) next.addEventListener("click", function () { bgmNext(false); });
+    var tg = document.getElementById("bgm-toggle");
+    if (tg) tg.addEventListener("click", bgmToggle);
+    var md = document.getElementById("bgm-mode");
+    if (md) md.addEventListener("click", function () {
+      var order = ["shuffle", "order", "reverse", "loop"];
+      bgm.mode = order[(order.indexOf(bgm.mode) + 1) % order.length];
+      try { localStorage.setItem("sys-bgm-mode", bgm.mode); } catch (e) {}
+      buildBgmQueue();
+      bgmPlayAt(0);
+      paintBgmBar();
+    });
+    var off = document.getElementById("bgm-off");
+    if (off) off.addEventListener("click", function () {
+      bgm.enabled = !bgm.enabled;
+      try { localStorage.setItem("sys-bgm-off", bgm.enabled ? "0" : "1"); }
+      catch (e) {}
+      if (bgm.enabled) { bgmPlayAt(bgm.idx || 0); }
+      else if (bgm.audio) bgm.audio.pause();
+      paintBgmBtn();
+    });
+    enableBgmDrag();
+  }
+
+  function renderBgmList() {
+    var ul = document.getElementById("bgm-list");
+    if (!ul) return;
+    if (!bgm.list.length) {
+      ul.innerHTML = '<li class="bgm-empty">' + esc(t("bgm.empty")) + "</li>";
+      return;
+    }
+    ul.innerHTML = bgm.list.map(function (m, i) {
+      return '<li data-i="' + i + '">' +
+        '<span class="bgm-handle" data-drag>⠿</span>' +
+        '<span class="bgm-name">' + esc(m.t) + (m.a ? '<em>' + esc(m.a) + "</em>" : "") + "</span>" +
+        '<button class="bgm-del" data-del="1" type="button" aria-label="remove">×</button>' +
+        "</li>";
+    }).join("");
+    [].slice.call(ul.querySelectorAll("[data-del]")).forEach(function (b) {
+      b.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var li = b.closest("li");
+        var i = parseInt(li.getAttribute("data-i"), 10);
+        bgm.list.splice(i, 1);
+        saveBgmList();
+        renderBgmList();
+        buildBgmQueue();
+        bgmPlayAt(bgm.idx >= bgm.queue.length ? 0 : bgm.idx);
+      });
+    });
+    paintBgmActive();
+  }
+
+  function saveBgmList() {
+    try { localStorage.setItem("sys-bgm-list", JSON.stringify(bgm.list.map(function (m) { return m.song; }))); }
+    catch (e) {}
+  }
+
+  /* 指针拖拽排序：桌面与手机都能用（HTML5 draggable 在移动端不工作） */
+  function enableBgmDrag() {
+    var list = document.getElementById("bgm-list");
+    if (!list) return;
+    var dragging = null;
+    list.addEventListener("pointerdown", function (ev) {
+      var h = ev.target.closest("[data-drag]");
+      if (!h) return;
+      dragging = h.closest("li");
+      if (dragging) dragging.classList.add("dragging");
+      ev.preventDefault();
+    });
+    list.addEventListener("pointermove", function (ev) {
+      if (!dragging) return;
+      var rows = [].slice.call(list.querySelectorAll("li:not(.dragging)"));
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i].getBoundingClientRect();
+        if (ev.clientY < r.top + r.height / 2) { list.insertBefore(dragging, rows[i]); return; }
+      }
+      list.appendChild(dragging);
+    });
+    ["pointerup", "pointercancel"].forEach(function (evt) {
+      list.addEventListener(evt, function () {
+        if (!dragging) return;
+        dragging.classList.remove("dragging");
+        dragging = null;
+        // 按 DOM 顺序重排播放单
+        var newList = [].slice.call(list.querySelectorAll("li")).map(function (li) {
+          return bgm.list[parseInt(li.getAttribute("data-i"), 10)];
+        }).filter(Boolean);
+        if (newList.length === bgm.list.length) { bgm.list = newList; saveBgmList(); renderBgmList(); buildBgmQueue(); }
+      });
+    });
+  }
+
+  function paintBgmActive() {
+    var ul = document.getElementById("bgm-list");
+    if (!ul) return;
+    var cur = bgmCurrent();
+    [].slice.call(ul.querySelectorAll("li")).forEach(function (li) {
+      var i = parseInt(li.getAttribute("data-i"), 10);
+      li.classList.toggle("on", !!cur && bgm.list[i] && bgm.list[i].song === cur.song);
+    });
+    var name = document.getElementById("bgm-now");
+    if (name && cur) name.textContent = cur.t;
+    paintBgmBar();
+  }
+
+  function paintBgmBar() {
+    var a = bgm.audio;
+    var fill = document.getElementById("bgm-fill");
+    var knob = document.getElementById("bgm-knob");
+    var tg = document.getElementById("bgm-toggle");
+    var md = document.getElementById("bgm-mode");
+    if (md) {
+      md.textContent = t("bgm." + bgm.mode);
+      md.title = t("bgm.mode") + "：" + t("bgm." + bgm.mode);
+    }
+    if (tg) tg.innerHTML = a && !a.paused ? "❚❚" : "▶";
+    if (!a || !fill) return;
+    var d = a.duration || 0;
+    var r = d ? (a.currentTime / d) * 100 : 0;
+    fill.style.width = r + "%";
+    if (knob) knob.style.left = r + "%";
+  }
+  function bgmPaintProgress() { paintBgmBar(); }
+
+  function paintBgmBtn() {
+    var b = document.getElementById("bgm-btn");
+    if (b) {
+      b.classList.toggle("off", !bgm.enabled);
+    }
+    var off = document.getElementById("bgm-off");
+    if (off) off.textContent = bgm.enabled ? "⏻" : "⭘";
+  }
+
+  // 供播放器弹窗里的“加入 BGM 播放单”调用
+  function bgmAdd(song) {
+    if (!song) return;
+    loadBgmMeta(function () {
+      if (bgm.list.some(function (m) { return m.song === song; })) return;
+      bgm.list.push(bgmEntry(song));
+      saveBgmList();
+      renderBgmList();
+      if (!bgm.audio) initBgm();
+      else { buildBgmQueue(); }
+      toast(t("bgm.added"));
+    });
+  }
+
+  var PLAYER_DATA = null;
+
   /* ==================== 初始化 ==================== */
   document.addEventListener("DOMContentLoaded", function () {
+    try { initBgm(); } catch (e) {}
     bindReveal();
     bindFilters();
     bindViewSwitch();
