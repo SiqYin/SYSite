@@ -515,8 +515,13 @@ class Builder:
             head_extra = ('<style>.op-lyrics,.op-line,.op-txt,.op-tr{font-family:var(--font)!important}</style>'
                           + head_extra)
 
+        import hashlib as _h
+        _js_path = os.path.join(SRC, "scripts", "app.js")
+        asset_v = _h.sha256(open(_js_path, "rb").read()).hexdigest()[:10] if os.path.exists(_js_path) else "1"
+
         return SHELL % {
             "lang": esc(self.locale), "prefix": self.prefix, "title": esc(title),
+            "asset_v": asset_v,
             "desc": esc(self.t("site.desc")), "brand": esc(self.t("site.name")),
             "nav": nav, "lang_btn": esc(self.t("lang.current")),
             "lang_menu": "".join(lang_items), "search_url": self.url("search"),
@@ -1079,7 +1084,7 @@ SHELL = """<!DOCTYPE html>
 <link rel="canonical" href="%(canonical)s">
 %(alt_links)s
 <link rel="icon" href="data:image/svg+xml,%%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%%3E%%3Ccircle cx='16' cy='16' r='13' fill='%%232980b9'/%%3E%%3Ccircle cx='21' cy='11' r='4' fill='%%233fb6a8'/%%3E%%3C/svg%%3E">
-<link rel="stylesheet" href="%(prefix)sassets/css/main.css">
+<link rel="stylesheet" href="%(prefix)sassets/css/main.css?v=%(asset_v)s">
 %(head_extra)s
 </head>
 <body>
@@ -1174,7 +1179,7 @@ SHELL = """<!DOCTYPE html>
 <div class="toast" id="toast"></div>
 
 <script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";window.SYS_PREFIX="%(prefix)s";window.SYS_PLAYER=%(player_cfg)s;</script>
-<script src="%(prefix)sassets/js/app.js"></script>
+<script src="%(prefix)sassets/js/app.js?v=%(asset_v)s"></script>
 </body>
 </html>
 """
@@ -1314,6 +1319,24 @@ def main():
         print("  BGM 曲目表 %d 首" % len(bgm))
     except Exception as exc:  # noqa: BLE001
         print("  ! BGM 曲目表生成失败：%s" % exc)
+
+        # CSS / JS 也加缓存破版（同字体，防止浏览器用旧版导致新功能全部失效）
+        for asset_sub, ext in (("css", "css"), ("js", "js")):
+            ap = os.path.join(DIST, "assets", asset_sub)
+            if not os.path.isdir(ap):
+                continue
+            for f in os.listdir(ap):
+                if not f.endswith("." + ext):
+                    continue
+                fp = os.path.join(ap, f)
+                h = hashlib.sha256(open(fp, "rb").read()).hexdigest()[:10]
+                # 只替换 HTML 里的引用
+                for page in glob.glob(os.path.join(DIST, "**", "*.html"), recursive=True):
+                    pt = open(page, "r", encoding="utf-8").read()
+                    nt = pt.replace("assets/%s/%s" % (asset_sub, f),
+                                    "assets/%s/%s?v=%s" % (asset_sub, f, h))
+                    if nt != pt:
+                        open(page, "w", encoding="utf-8").write(nt)
 
     shutil.copy(SNAPSHOT, os.path.join(DIST, "snapshot.json"))
     with open(os.path.join(DIST, "robots.txt"), "w", encoding="utf-8") as f:
