@@ -161,6 +161,56 @@
     return out;
   }
 
+  /* 判断「正文 + 翻译」形态的通用规则。
+
+     网易云上常见三种排布：
+     1. lrc 是正文、tlyric 是翻译（各带时间戳）→ 交给 mergeTrans 按时间对齐；
+     2. lrc / tlyric 都无时间戳（纯文本）→ 按行号对齐；
+     3. 翻译（本站多是吴语拼音）直接写在 lrc 里，与汉字正文行交替出现、tlyric 为空
+        → 需要把这类纯拉丁行抽出来当译文挂到相邻正文行下面。
+
+     第 3 种靠两个特征识别，避免把真正的英文歌词误判成译文：
+       a) 该行不含任何 CJK/假名/谚文，且只由拉丁字母、数字、常用标点组成；
+       b) 这类行在整段里占比不低，且大多是「上一行是正文」的交替结构。
+     两条都满足才当译文处理。 */
+  var CJK_RE = /[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/;
+  var LATIN_ONLY_RE = /^[A-Za-z0-9\s'’\u00b7.,:;!?()[\]\-_/]+$/;
+
+  function isLatinLine(s) {
+    return s.length >= 4 && !CJK_RE.test(s) && LATIN_ONLY_RE.test(s);
+  }
+
+  function splitInlineTranslation(lines) {
+    if (!lines.length || lines[0].t !== null) return lines;   // 只处理无时间戳的纯文本
+    var latinIdx = [];
+    for (var i = 0; i < lines.length; i++) if (isLatinLine(lines[i].s)) latinIdx.push(i);
+    if (!latinIdx.length) return lines;
+
+    var adjacent = 0;
+    for (var j = 0; j < latinIdx.length; j++) {
+      var k = latinIdx[j];
+      if (k > 0 && CJK_RE.test(lines[k - 1].s) && latinIdx.indexOf(k - 1) < 0) adjacent++;
+    }
+    if (adjacent / latinIdx.length < 0.6 || latinIdx.length / lines.length < 0.25) {
+      return lines;   // 更像真的英文歌词，原样保留
+    }
+
+    var out = [];
+    var isLatin = {};
+    for (var a = 0; a < latinIdx.length; a++) isLatin[latinIdx[a]] = true;
+    for (var m = 0; m < lines.length; m++) {
+      if (isLatin[m]) {
+        // 挂到最近的一条还没有译文的正文行上
+        for (var back = out.length - 1; back >= 0; back--) {
+          if (!out[back].tr) { out[back].tr = lines[m].s; break; }
+        }
+      } else {
+        out.push({ t: lines[m].t, s: lines[m].s });
+      }
+    }
+    return out;
+  }
+
   function mergeTrans(main, trans) {
     if (!trans || !trans.length || !main.length) return main;
     // 未同步歌词按行号对齐（两侧都没有时间戳）
@@ -208,7 +258,17 @@
       '      <div class="op-art"><img id="op-art" alt=""></div>' +
       '      <div><h4 class="op-title" id="op-title"></h4><p class="op-sub" id="op-sub"></p></div>' +
       "    </div>" +
-      '    <div class="op-right"><div class="op-lyrics" id="op-lyrics"></div></div>' +
+      '    <div class="op-right">' +
+      '      <div class="op-lyhead">' +
+      '        <span class="op-lylabel">' + esc(t("player.lyrics")) + "</span>" +
+      '        <button class="op-tr-toggle" id="op-tr" type="button" aria-pressed="true">' +
+      "          <span>" + esc(t("player.translation")) + "</span>" +
+      '          <span class="op-check"><svg viewBox="0 0 24 24" aria-hidden="true">' +
+      '<path d="M20 6L9 17l-5-5"/></svg></span>' +
+      "        </button>" +
+      "      </div>" +
+      '      <div class="op-lyrics" id="op-lyrics"></div>' +
+      "    </div>" +
       "  </div>" +
       '  <div class="op-inner" style="padding-top:0">' +
       '    <div class="op-bar" style="grid-column:1/-1">' +
@@ -233,6 +293,7 @@
       title: document.getElementById("op-title"),
       sub: document.getElementById("op-sub"),
       lyrics: document.getElementById("op-lyrics"),
+      trBtn: document.getElementById("op-tr"),
       prev: document.getElementById("op-prev"),
       toggle: document.getElementById("op-toggle"),
       next: document.getElementById("op-next"),
@@ -285,6 +346,28 @@
     });
     bindSeek(el.seek, function (ratio) { if (isFinite(a.duration)) a.currentTime = a.duration * ratio; });
     bindSeek(el.volbar, function (ratio) { a.muted = false; el.vol.innerHTML = icon("volume"); a.volume = Math.max(0, Math.min(1, ratio)); paintVol(); });
+
+    if (el.trBtn) {
+      el.trBtn.addEventListener("click", function () {
+        trOn = !trOn;
+        try { localStorage.setItem("sys-lyrics-tr", trOn ? "1" : "0"); } catch (e) {}
+        paintTrState();
+      });
+    }
+  }
+
+  /* 译文开关：默认开。开启时按钮变色并在右下角带一个小勾，关闭则去掉并隐藏所有译文行。 */
+  var trOn = true;
+  try { if (localStorage.getItem("sys-lyrics-tr") === "0") trOn = false; } catch (e) {}
+
+  function paintTrState() {
+    if (!el.root) return;
+    el.root.classList.toggle("no-tr", !trOn);
+    if (el.trBtn) {
+      el.trBtn.classList.toggle("on", trOn);
+      el.trBtn.setAttribute("aria-pressed", trOn ? "true" : "false");
+      el.trBtn.title = t("player.trHint");
+    }
   }
 
   function paintVol() {
@@ -335,12 +418,18 @@
     el.prev.disabled = pl.length < 2;
     el.next.disabled = pl.length < 2;
 
-    // 歌词
-    var lines = mergeTrans(parseLrc(d.l), parseLrc(d.t));
+    // 歌词：优先用 tlyric 当译文；没有 tlyric 时，尝试把内联在正文里的拼音抽出来当译文
+    var mainLines = parseLrc(d.l);
+    var transLines = parseLrc(d.t);
+    var lines = transLines.length ? mergeTrans(mainLines, transLines)
+                                  : splitInlineTranslation(mainLines);
     lrcLines = lines; lrcEls = []; lastLrcIdx = -1;
+    var hasTr = lines.some(function (x) { return x.tr; });
     if (!lines.length) {
       el.lyrics.innerHTML = '<p class="op-empty">' + esc(d.u ? t("player.noLyric") : t("player.notPlayable")) + "</p>";
+      if (el.trBtn) el.trBtn.classList.add("is-hidden");
     } else {
+      if (el.trBtn) el.trBtn.classList.toggle("is-hidden", !hasTr);
       el.lyrics.innerHTML = lines.map(function (ln, i) {
         return '<div class="op-line" data-i="' + i + '"><span class="op-txt">' + esc(ln.s) + "</span>" +
                (ln.tr ? '<span class="op-tr">' + esc(ln.tr) + "</span>" : "") + "</div>";
@@ -356,6 +445,7 @@
         })(nodes[i], i);
       }
     }
+    paintTrState();
 
     // 音源
     if (d.u) {

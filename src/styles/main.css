@@ -671,6 +671,71 @@ main { position: relative; z-index: 1; }
 .op-title { margin: 0; font-size: 17px; font-weight: 500; line-height: 1.5; }
 .op-sub { margin: 5px 0 0; font-size: 12.5px; opacity: .72; }
 .op-right { min-width: 0; display: flex; flex-direction: column; }
+
+/* 歌词区顶部：标题 + 译文开关 */
+.op-lyhead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 8px;
+  flex: none;
+}
+.op-lylabel { font-size: 12.5px; opacity: .62; letter-spacing: .04em; }
+
+.op-tr-toggle {
+  position: relative;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(255, 255, 255, .22);
+  background: rgba(255, 255, 255, .07);
+  color: rgba(255, 255, 255, .72);
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
+}
+.op-tr-toggle:hover { background: rgba(255, 255, 255, .16); color: #fff; }
+.op-tr-toggle:active { transform: scale(.95); }
+/* 开启态：整体变色 + 右下角一个小勾 */
+.op-tr-toggle.on {
+  background: rgba(63, 182, 168, .22);
+  border-color: rgba(63, 182, 168, .75);
+  color: #7fe3d4;
+}
+.op-check {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3fb6a8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(.4);
+  transition: opacity var(--t-fast), transform var(--t-fast);
+  pointer-events: none;
+}
+.op-tr-toggle.on .op-check { opacity: 1; transform: none; }
+.op-check svg {
+  width: 9px;
+  height: 9px;
+  fill: none;
+  stroke: #0b1f2e;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* 关闭态：隐藏所有译文行 */
+.op.no-tr .op-tr { display: none; }
+.op.no-tr .op-line.on .op-txt { font-size: 15.5px; }
+
 .op-lyrics {
   flex: 1;
   height: 330px;
