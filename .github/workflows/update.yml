@@ -6,7 +6,7 @@ on:
   schedule:
     # 每 20 分钟一次。网易云的音频直链带签名、**实测约 30 分钟内失效，所以要靠频繁重建来保持链接新鲜。
     # 定时用 UTC，北京时间需 -8。
-    - cron: "17 */20 * * *"
+    - cron: "3,23,43 * * * *"
   workflow_dispatch:
   push:
     branches: [main]

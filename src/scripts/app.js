@@ -1239,74 +1239,131 @@
 
   function initBgm() {
     loadBgmMeta(function () {
+      // 构建期注入的吴语歌单（按投稿时间倒序的前 20 首歌 ID）
+      var wuIds = window.SYS_BGM_WU || [];
+      // 用户上次的播放单
       var stored = null;
       try { stored = JSON.parse(localStorage.getItem("sys-bgm-list") || "null"); } catch (e) {}
-      var seeds = (stored && stored.length) ? stored : BGM_DEFAULT;
-      bgm.list = seeds.map(bgmEntry).filter(function (x) { return x.song; });
-      if (!bgm.list.length) bgm.list = BGM_DEFAULT.map(bgmEntry);
+      // 播放单 = 默认 5 首 + 吴语音乐（去重），用户可拖拽调整
+      var songIds = (stored && stored.length) ? stored : BGM_DEFAULT.concat(wuIds);
+      // 去重
+      var seen = {};
+      bgm.list = [];
+      for (var i = 0; i < songIds.length; i++) {
+        if (!songIds[i] || seen[songIds[i]]) continue;
+        seen[songIds[i]] = true;
+        bgm.list.push(bgmEntry(songIds[i]));
+      }
+      bgm.initialCount = Math.min(BGM_DEFAULT.length, bgm.list.length);
+      bgm.userReordered = !!stored;   // 用户上次的播放单如果是自定义的，就视为已重排
       try {
         var m = localStorage.getItem("sys-bgm-mode");
         if (m) bgm.mode = m;
       } catch (e) {}
-      try {
-        bgm.enabled = localStorage.getItem("sys-bgm-off") !== "1";
-      } catch (e) {}
+      try { bgm.enabled = localStorage.getItem("sys-bgm-off") !== "1"; } catch (e) {}
 
       if (!bgm.audio) {
         bgm.audio = document.createElement("audio");
-        bgm.audio.preload = "auto";
+        bgm.audio.preload = "none";
         bgm.audio.volume = 0.55;
-        bgm.audio.addEventListener("ended", function () { bgmNext(true); });
+        bgm.audio.addEventListener("ended", function () { bgmAdvance(true); });
         bgm.audio.addEventListener("timeupdate", bgmPaintProgress);
         bgm.audio.addEventListener("loadedmetadata", bgmPaintProgress);
         document.body.appendChild(bgm.audio);
       }
+      // 面板文案
       var pt = document.getElementById("bgp-title");
       if (pt) pt.textContent = t("bgm.title");
       var ph = document.getElementById("bgp-hint");
       if (ph) ph.textContent = t("bgm.drag");
-      var st = document.getElementById("sm-title");
-      if (st) st.textContent = t("share.title");
+      var st2 = document.getElementById("sm-title");
+      if (st2) st2.textContent = t("share.title");
       var sh2 = document.getElementById("sm-hint");
       if (sh2) sh2.textContent = t("share.hint");
       var dl = document.getElementById("share-dl");
       if (dl) dl.textContent = t("share.save");
       var sx = document.getElementById("share-x");
       if (sx) sx.addEventListener("click", function () {
-        var b = document.getElementById("share-modal");
-        if (b) b.classList.remove("open");
+        var b2 = document.getElementById("share-modal");
+        if (b2) b2.classList.remove("open");
       });
 
       renderBgmList();
-      buildBgmQueue();
+      buildQueue();
       bindBgmUi();
       if (bgm.enabled) tryAutoStart();
       paintBgmBtn();
     });
   }
 
-  // 第一轮：默认 5 首乱序；之后沿播放单顺序循环
-  function buildBgmQueue() {
-    if (bgm.mode === "shuffle") {
-      var arr = bgm.list.slice();
-      for (var i = arr.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
-      }
-      bgm.queue = arr;
+  /* 播放队列逻辑：
+     - 首次进入（用户没拖拽过）→ 前 initialCount 首乱序播一轮 → 之后进入吴语歌单部分按顺序循环
+     - 用户拖拽后 → 按新顺序，配合当前模式（顺序/逆序/乱序/单曲循环）播放 */
+  function buildQueue() {
+    var list = bgm.list;
+    if (bgm.userReordered) {
+      bgm.queue = list.slice();
       bgm.idx = 0;
-    } else if (bgm.mode === "reverse") {
-      bgm.queue = bgm.list.slice().reverse();
-      bgm.idx = 0;
-    } else {
-      bgm.queue = bgm.list.slice();
-      bgm.idx = 0;
+      return;
     }
-    bgm.firstRoundDone = false;
+    // 没拖拽过 → 前 5 首乱序，其余按顺序
+    var head = list.slice(0, Math.min(bgm.initialCount, list.length));
+    var tail = list.slice(Math.min(bgm.initialCount, list.length));
+    for (var i = head.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = head[i]; head[i] = head[j]; head[j] = tmp;
+    }
+    bgm.queue = head.concat(tail);
+    bgm.idx = 0;
+    // 第一轮只播前 5 首（乱序），之后从吴语歌单开始按顺序循环
+    bgm.roundOne = head.length;
   }
 
-  function bgmCurrent() {
-    return bgm.queue[bgm.idx] || bgm.list[0] || null;
+  function bgmAdvance(auto) {
+    if (bgm.mode === "loop" && auto) { bgmPlayAt(bgm.idx); return; }
+    // 第一轮结束：如果还在前 initialCount 首内，跳到吴语歌单部分
+    if (bgm.roundOne && bgm.idx >= bgm.roundOne - 1) {
+      bgm.roundOne = false;
+      bgm.idx = bgm.initialCount;   // 从吴语歌单的第一首开始
+      if (bgm.idx >= bgm.queue.length) bgm.idx = 0;
+      bgmPlayAt(bgm.idx);
+      return;
+    }
+    bgm.idx += 1;
+    if (bgm.idx >= bgm.queue.length) {
+      if (bgm.mode === "loop") { bgm.idx = bgm.initialCount; }
+      else { bgm.idx = 0; }
+    }
+    bgmPlayAt(bgm.idx);
+  }
+
+  function bgmNext() { bgmAdvance(false); }
+  function bgmPrev() {
+    bgm.idx -= 1;
+    if (bgm.idx < 0) bgm.idx = bgm.queue.length - 1;
+    bgmPlayAt(bgm.idx);
+  }
+  function bgmToggle() {
+    var a = bgm.audio;
+    if (!a) return;
+    if (a.paused) { if (!a.src) bgmPlayAt(bgm.idx || 0); else a.play().catch(function () {}); }
+    else a.pause();
+    paintBgmBar();
+  }
+
+  function tryAutoStart() {
+    bgmPlayAt(0);
+    // 浏览器常阻止带声音的自动播放：首次交互时补一次
+    // 但如果交互的是 BGM 按钮或面板，不触发播放（让按钮只打开面板）
+    var once = function (ev) {
+      if (ev.target && ev.target.closest && ev.target.closest("#bgm-btn, #bgm-panel")) return;
+      document.removeEventListener("pointerdown", once, true);
+      document.removeEventListener("keydown", once, true);
+      var a = bgm.audio;
+      if (a && a.paused && a.src) { a.play().catch(function () {}); }
+    };
+    document.addEventListener("pointerdown", once, true);
+    document.addEventListener("keydown", once, true);
   }
 
   function bgmPlayAt(i) {
@@ -1477,7 +1534,7 @@
         var newList = [].slice.call(list.querySelectorAll("li")).map(function (li) {
           return bgm.list[parseInt(li.getAttribute("data-i"), 10)];
         }).filter(Boolean);
-        if (newList.length === bgm.list.length) { bgm.list = newList; saveBgmList(); renderBgmList(); buildBgmQueue(); }
+        if (newList.length === bgm.list.length) { bgm.list = newList; bgm.userReordered = true; saveBgmList(); renderBgmList(); }
       });
     });
   }

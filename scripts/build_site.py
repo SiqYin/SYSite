@@ -530,6 +530,7 @@ class Builder:
             "og_url": esc(og_url), "canonical": esc(canon), "alt_links": alts,
             "site_url": esc(base), "locale": esc(self.locale), "page_key": esc(page),
             "player_cfg": player_cfg,
+            "bgm_wu": json.dumps([i["nativeId"].replace("song","") for i in self.wuyue_music_items(20)], ensure_ascii=False),
             "footer_updated": esc("%s %s" % (self.t("footer.updated"),
                                              fmt_date(self.snap.get("generatedAt")))),
             "footer_note": esc(self.t("footer.generated")), "footer_status": "".join(status),
@@ -1178,7 +1179,7 @@ SHELL = """<!DOCTYPE html>
 
 <div class="toast" id="toast"></div>
 
-<script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";window.SYS_PREFIX="%(prefix)s";window.SYS_PLAYER=%(player_cfg)s;</script>
+<script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";window.SYS_PREFIX="%(prefix)s";window.SYS_PLAYER=%(player_cfg)s;window.SYS_BGM_WU=%(bgm_wu)s;</script>
 <script src="%(prefix)sassets/js/app.js?v=%(asset_v)s"></script>
 </body>
 </html>
