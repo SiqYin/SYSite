@@ -46,6 +46,9 @@ jobs:
       - name: 处理封面资源
         run: python scripts/build_assets.py
 
+      - name: 生成分享卡片
+        run: python scripts/build_og.py
+
       - name: 渲染站点
         run: python scripts/build_site.py
 

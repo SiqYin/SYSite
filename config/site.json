@@ -5,8 +5,15 @@
     "ownerAlias": "SiqYin",
     "defaultLocale": "zh-CN",
     "enabledLocales": ["zh-CN", "zh-TW", "en", "ja"],
+    "url": "https://siqyin.github.io/SYSite",
     "domain": "",
     "repository": "SiqYin/SYSite"
+  },
+  "analytics": {
+    "_note": "访问统计。纯静态托管没有后端，所以默认关闭；填上自建端点（如 Cloudflare Worker）即启用，前端只发一次匿名 ping，不设 Cookie、不记录 IP。详见 README。",
+    "enable": false,
+    "endpoint": "",
+    "site": "SYSite"
   },
   "accounts": {
     "github": {

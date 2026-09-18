@@ -54,6 +54,7 @@ NAV = [
     ("music", "nav.music"),
     ("articles", "nav.articles"),
     ("projects", "nav.projects"),
+    ("stats", "nav.stats"),
     ("about", "nav.about"),
 ]
 PAGES = [p for p, _ in NAV] + ["search"]
@@ -223,9 +224,14 @@ class Builder:
         dur_html = '<span class="dur">%s</span>' % esc(dur) if (dur and not square) else ""
         sub_html = '<div class="card-sub">%s</div>' % esc(sub) if sub else ""
         cls = "card rise" if reveal else "card"
+        year = fmt_date(it.get("publishedAt"))[:4]
+        if kind == "audio":
+            f_attrs = ' data-f-year="%s" data-f-album="%s"' % (esc(year), esc(sub or ""))
+        else:
+            f_attrs = ' data-f-year="%s" data-f-coll="%s"' % (esc(year), esc("|".join(it.get("collections") or [])))
         return (
             '<article class="%s" data-delay="%d" data-play="1" data-kind="%s" tabindex="0" role="button" '
-            'data-ts="%d" data-heat="%d" '
+            'data-ts="%d" data-heat="%d"%s '
             'data-title="%s" data-meta="%s" data-embed="%s" data-source="%s" '
             'data-source-label="%s" data-platform="%s">'
             '<div class="card-cover%s">%s%s%s'
@@ -233,7 +239,7 @@ class Builder:
             '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></span></div>'
             '<div class="card-body"><h3 class="card-title">%s</h3>%s'
             '<div class="card-meta"><span>%s</span></div></div></article>'
-        ) % (cls, delay, kind, to_epoch(it.get("publishedAt")), int(heat or 0),
+        ) % (cls, delay, kind, to_epoch(it.get("publishedAt")), int(heat or 0), f_attrs,
              esc(it["title"]), esc(meta), esc(embed), esc(it["url"]),
              esc(self.t("player.openSourceAudio" if kind == "audio" else "player.openSource")),
              PLATFORM_LABEL.get(it["platform"], ""),
@@ -339,6 +345,48 @@ class Builder:
                 '<span data-dir-label>%s</span></button></div>'
                 ) % (target, esc(self.t("sort.heat")), esc(self.t("sort.time")), esc(self.t("sort.desc")))
 
+    def view_switch(self):
+        """网格 / 时间轴切换。时间轴的年份分隔条由前端按当前顺序插入。"""
+        return ('<div class="seg view-switch" data-view-switch>'
+                '<button class="seg-btn on" data-set-view="grid">%s</button>'
+                '<button class="seg-btn" data-set-view="timeline">%s</button></div>'
+                ) % (esc(self.t("view.grid")), esc(self.t("view.timeline")))
+
+    def filter_row(self, name, options, label_key=None):
+        """一行筛选按钮。name 同时决定卡片上的 data-f-<name> 属性名。"""
+        chips = []
+        for i, (val, label) in enumerate(options):
+            chips.append('<button class="chip-btn%s" data-value="%s">%s</button>'
+                         % (" on" if i == 0 else "", esc(val), esc(label)))
+        return ('<div class="filter-row" data-filter="%s"><span class="filter-label">%s</span>%s</div>'
+                % (esc(name), esc(self.t(label_key or ("filter.%s" % name))), "".join(chips)))
+
+    # ---- 筛选项来源 ----
+    def year_options(self, items):
+        years = sorted({fmt_date(i.get("publishedAt"))[:4] for i in items
+                        if fmt_date(i.get("publishedAt"))}, reverse=True)
+        return [("", self.t("filter.all"))] + [(y, y) for y in years]
+
+    def coll_options(self, items):
+        names = []
+        for i in items:
+            for c in i.get("collections") or []:
+                if c and c not in names:
+                    names.append(c)
+        opts = [("", self.t("filter.all"))] + [(n, n) for n in names]
+        if any(not (i.get("collections") or []) for i in items):
+            opts.append(("__none__", self.t("filter.other")))
+        return opts
+
+    def album_options(self, items):
+        names = []
+        for i in items:
+            a = (i.get("extra") or {}).get("album")
+            if a and a not in names:
+                names.append(a)
+        opts = [("", self.t("filter.all"))] + [(n, n) for n in names]
+        return opts
+
     def more_button(self, show, total):
         if total <= show:
             return ""
@@ -351,18 +399,25 @@ class Builder:
                 '<a class="pill-link" href="%s">%s</a></div>'
                 % (self.url(page), esc(self.t("section.more"))))
 
-    def section(self, key, cards, cls="", sub="", reveal=0, sortbar="", sortable="", tail=""):
-        anchor = key if key in ("videos", "music", "projects", "articles", "featured") else key
+    def section(self, key, cards, cls="", sub="", reveal=0, right="", sortable="",
+                filters="", filterable="", tail=""):
+        anchor = key
         head = ('<div class="section-head"><h2>%s</h2>%s%s</div>'
                 % (esc(self.t("section.%s" % key)),
-                   '<span class="sub">%s</span>' % esc(sub) if sub else "", sortbar))
-        attr = ' data-reveal="%d"' % reveal if reveal else ""
+                   '<span class="sub">%s</span>' % esc(sub) if sub else "", right))
+        attr = ""
+        if reveal:
+            attr += ' data-reveal="%d"' % reveal
         if sortable:
             attr += ' data-sortable="%s"' % sortable
-        return ('<section class="section" id="%s"><div class="wrap">%s'
-                '<div class="grid %s"%s>%s</div>%s%s</div></section>'
-                % (anchor, head, cls, attr, "".join(cards),
-                   self.more_button(reveal, len(cards)) if reveal else "", tail))
+        if filterable:
+            attr += ' data-filterable="%s"' % filterable
+        empty = ('<p class="filter-empty is-hidden" data-empty-for="%s">%s</p>'
+                 % (esc(filterable), esc(self.t("filter.none")))) if filterable else ""
+        return ('<section class="section" id="%s"><div class="wrap">%s%s'
+                '<div class="grid %s"%s>%s</div>%s%s%s</div></section>'
+                % (anchor, head, filters, cls, attr, "".join(cards),
+                   self.more_button(reveal, len(cards)) if reveal else "", empty, tail))
 
     # ---------- 页面外壳 ----------
     def url(self, page):
@@ -394,12 +449,31 @@ class Builder:
                           % (cls, esc(PLATFORM_SHORT.get(p, p)),
                              esc(self.t("status.ok") if s.get("ok") else self.t("status.stale")),
                              esc(str(s.get("itemCount")))))
+
+        # 分享卡片与规范链接：og:image 必须是绝对地址，所以要用 site.url
+        base = (self.cfg["site"].get("url") or "").rstrip("/")
+        og_page = page if page in ("index", "videos", "music", "articles", "projects", "about", "stats") else "index"
+        # 注意：分享卡片与封面一样放在共享的 assets/og 下（不随语言复制），所以 URL 不带语言子目录
+        og_rel = "assets/og/%s-%s.jpg" % (self.locale, og_page)
+        og_url = ("%s/%s" % (base, og_rel)) if base else og_rel
+        page_path = "" if page == "index" else page + ".html"
+        canon = ("%s/%s%s" % (base, (self.sub + "/") if self.sub else "", page_path)) if base else ""
+        alts = "".join('<link rel="alternate" hreflang="%s" href="%s/%s%s">'
+                       % (code, base, (sub + "/") if sub else "", page_path) for code, _, sub in LOCALES) if base else ""
+        a = self.cfg.get("analytics") or {}
+
         return SHELL % {
             "lang": esc(self.locale), "prefix": self.prefix, "title": esc(title),
             "desc": esc(self.t("site.desc")), "brand": esc(self.t("site.name")),
             "nav": nav, "lang_btn": esc(self.t("lang.current")),
             "lang_menu": "".join(lang_items), "search_url": self.url("search"),
             "home": self.url("index"), "body": body, "head_extra": head_extra,
+            "og_url": esc(og_url), "canonical": esc(canon), "alt_links": alts,
+            "site_url": esc(base), "locale": esc(self.locale), "page_key": esc(page),
+            "analytics_json": json.dumps({"enable": bool(a.get("enable")),
+                                          "endpoint": a.get("endpoint") or "",
+                                          "site": a.get("site") or "site"},
+                                         ensure_ascii=False, separators=(",", ":")),
             "footer_updated": esc("%s %s" % (self.t("footer.updated"),
                                              fmt_date(self.snap.get("generatedAt")))),
             "footer_note": esc(self.t("footer.generated")), "footer_status": "".join(status),
@@ -530,7 +604,9 @@ class Builder:
         sec.append(self.section("videos",
                                 [self.media_card(v, delay=min(i, 8) * 45) for i, v in enumerate(d["videos"][:24])],
                                 cls="videos", sub="%d %s" % (len(d["videos"]), self.t("unit.videos")),
-                                reveal=12, sortbar=self.sortbar("videos"), sortable="videos",
+                                reveal=12, right=self.view_switch() + self.sortbar("videos"),
+                                sortable="videos", filterable="videos",
+                                filters=self.filter_row("year", self.year_options(d["videos"])),
                                 tail=self.more_link("videos")))
 
         sec.append(self.section("music",
@@ -538,7 +614,9 @@ class Builder:
                                                  sub=(s.get("extra") or {}).get("album"))
                                  for i, s in enumerate(d["songs"][:24])],
                                 cls="music", sub="%d %s" % (len(d["songs"]), self.t("unit.tracks")),
-                                reveal=12, sortbar=self.sortbar("songs"), sortable="songs",
+                                reveal=12, right=self.sortbar("songs"), sortable="songs",
+                                filterable="songs",
+                                filters=self.filter_row("album", self.album_options(d["songs"])),
                                 tail=self.more_link("music")))
 
         sec.append(self.section("projects",
@@ -568,14 +646,21 @@ class Builder:
             return [self.section("videos",
                                  [self.media_card(v, delay=min(i, 10) * 30) for i, v in enumerate(d["videos"])],
                                  cls="videos", sub="%d %s" % (len(d["videos"]), self.t("unit.videos")),
-                                 reveal=24, sortbar=self.sortbar("videos"), sortable="videos")]
+                                 reveal=24, right=self.view_switch() + self.sortbar("videos"),
+                                 sortable="videos", filterable="videos",
+                                 filters=self.filter_row("year", self.year_options(d["videos"]))
+                                         + self.filter_row("coll", self.coll_options(d["videos"]),
+                                                           label_key="filter.collection"))]
         if page == "music":
             return [self.section("music",
                                  [self.media_card(s, square=True, delay=min(i, 10) * 30,
                                                   sub=(s.get("extra") or {}).get("album"))
                                   for i, s in enumerate(d["songs"])],
                                  cls="music", sub="%d %s" % (len(d["songs"]), self.t("unit.tracks")),
-                                 reveal=24, sortbar=self.sortbar("songs"), sortable="songs")]
+                                 reveal=24, right=self.sortbar("songs"), sortable="songs",
+                                 filterable="songs",
+                                 filters=self.filter_row("year", self.year_options(d["songs"]))
+                                         + self.filter_row("album", self.album_options(d["songs"])))]
         if page == "projects":
             return [self.section("projects",
                                  [self.project_card(p, delay=min(i, 6) * 50) for i, p in enumerate(d["projects"])],
@@ -661,6 +746,89 @@ class Builder:
                 ) % (esc(self.prefix), esc(self.locale), esc(self.t("search.placeholder")),
                      chips, ychips, esc(self.t("search.hint")))
 
+    def stats_body(self):
+        """数据统计页：全部数字由构建期快照算出，随每次更新自动重算。"""
+        d = self.data()
+        videos, songs, posts, projects = d["videos"], d["songs"], d["posts"], d["projects"]
+
+        total_play = sum((v.get("stats") or {}).get("play") or 0 for v in videos)
+        total_cmt = sum((s.get("stats") or {}).get("comments") or 0 for s in songs)
+        total_sec = sum((v.get("durationSec") or 0) for v in videos) + \
+                    sum((s.get("durationSec") or 0) for s in songs)
+        years = sorted({fmt_date(i.get("publishedAt"))[:4] for i in videos + songs + posts
+                        if fmt_date(i.get("publishedAt"))})
+        total_items = len(videos) + len(songs) + len(posts) + len(projects)
+
+        # 内容概览
+        cards = [("%s" % len(videos), self.t("unit.videos")),
+                 ("%s" % len(songs), self.t("unit.tracks")),
+                 ("%s" % len(d["articleLists"]), self.t("unit.collections")),
+                 ("%s" % len(projects), self.t("unit.projects")),
+                 (fmt_num(total_play), self.t("stats.totalPlay")),
+                 (fmt_num(total_cmt), self.t("stats.totalComments")),
+                 ("%.0f" % (total_sec / 3600.0), self.t("stats.hours")),
+                 ("%d" % len(years), self.t("stats.years"))]
+        overview = "".join('<div class="stat"><b>%s</b><span>%s</span></div>' % (esc(v), esc(k))
+                           for v, k in cards)
+
+        # 年度发布趋势（纯 CSS 条形，不用图表库）
+        per_year = {}
+        for it in videos + songs + posts:
+            y = fmt_date(it.get("publishedAt"))[:4]
+            if y:
+                per_year[y] = per_year.get(y, 0) + 1
+        peak = max(per_year.values()) if per_year else 1
+        bars = ""
+        for y in sorted(per_year, reverse=True):
+            n = per_year[y]
+            bars += ('<div class="bar-row"><span class="bar-year">%s</span>'
+                     '<span class="bar-track"><span class="bar-fill" style="width:%.1f%%"></span></span>'
+                     '<span class="bar-num">%d</span></div>') % (esc(y), n * 100.0 / peak, n)
+
+        # 播放最多 / 评论最多
+        top_v = [self.mini(v, i + 1) for i, v in enumerate(videos[:10])]
+        top_s = [self.mini(s, i + 1) for i, s in enumerate(songs[:10])]
+
+        # 平台分布
+        plats = {}
+        for it in self.items:
+            if (it.get("extra") or {}).get("isAlbum"):
+                continue
+            plats[it["platform"]] = plats.get(it["platform"], 0) + 1
+        ptot = sum(plats.values()) or 1
+        ptw = ""
+        for p, n in sorted(plats.items(), key=lambda kv: -kv[1]):
+            ptw += ('<div class="bar-row"><span class="bar-year">%s</span>'
+                    '<span class="bar-track"><span class="bar-fill alt" style="width:%.1f%%"></span></span>'
+                    '<span class="bar-num">%d</span></div>') % (esc(PLATFORM_LABEL.get(p, p)),
+                                                                n * 100.0 / ptot, n)
+
+        # 访问统计（默认关闭，说明清楚为什么不默认开）
+        a = self.cfg.get("analytics") or {}
+        on = bool(a.get("enable")) and bool(a.get("endpoint"))
+        visits = ('<p class="stat-note ok">%s</p>' % esc(self.t("stats.visitsOn"))) if on else \
+                 ('<p class="stat-note">%s</p>' % esc(self.t("stats.visitsOff")))
+
+        return ('<section class="section"><div class="wrap">'
+                '<div class="subsection-head"><h3>%s</h3><span class="sub">%s</span></div>'
+                '<div class="hero-stats">%s</div>'
+                '<p class="stat-note">%s</p>'
+                '<div class="subsection-head" style="margin-top:34px"><h3>%s</h3></div>%s'
+                '<div class="subsection-head" style="margin-top:34px"><h3>%s</h3></div>%s'
+                '<div class="stat-cols">'
+                '<div><div class="subsection-head"><h3>%s</h3></div><div class="mini-list">%s</div></div>'
+                '<div><div class="subsection-head"><h3>%s</h3></div><div class="mini-list">%s</div></div>'
+                "</div>"
+                '<div class="subsection-head" style="margin-top:34px"><h3>%s</h3></div>%s'
+                "</div></section>"
+                ) % (esc(self.t("stats.overview")), esc("%s %d" % (self.t("stats.items"), total_items)),
+                     overview, esc(self.t("stats.note")),
+                     esc(self.t("stats.trend")), bars,
+                     esc(self.t("stats.platforms")), ptw,
+                     esc(self.t("stats.topVideos")), "".join(top_v),
+                     esc(self.t("stats.topSongs")), "".join(top_s),
+                     esc(self.t("stats.visits")), visits)
+
     # ---------- 搜索索引 ----------
     def search_index(self):
         d = self.data()
@@ -724,6 +892,8 @@ class Builder:
             title, sub = self.t("nav.%s" % page), self.t("section.%s.sub" % page)
         elif page == "search":
             title, sub = self.t("search.title"), self.t("search.sub")
+        elif page == "stats":
+            title, sub = self.t("stats.title"), self.t("stats.sub")
         elif page == "about":
             title, sub = self.t("about.title"), self.t("site.tagline")
         else:
@@ -744,6 +914,9 @@ class Builder:
             elif page == "about":
                 body = self.about_body()
                 title = "%s · %s" % (self.t("about.title"), self.t("site.name"))
+            elif page == "stats":
+                body = self.stats_body()
+                title = "%s · %s" % (self.t("stats.title"), self.t("site.name"))
             else:
                 body = "".join(self.page_body(page))
                 title = "%s · %s" % (self.t("nav.%s" % page), self.t("site.name"))
@@ -770,6 +943,22 @@ SHELL = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%(title)s</title>
 <meta name="description" content="%(desc)s">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="%(brand)s">
+<meta property="og:title" content="%(title)s">
+<meta property="og:description" content="%(desc)s">
+<meta property="og:image" content="%(og_url)s">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="%(locale)s">
+<meta property="og:url" content="%(canonical)s">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="%(title)s">
+<meta name="twitter:description" content="%(desc)s">
+<meta name="twitter:image" content="%(og_url)s">
+<link rel="canonical" href="%(canonical)s">
+%(alt_links)s
+<link rel="icon" href="data:image/svg+xml,%%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%%3E%%3Ccircle cx='16' cy='16' r='13' fill='%%232980b9'/%%3E%%3Ccircle cx='21' cy='11' r='4' fill='%%233fb6a8'/%%3E%%3C/svg%%3E">
 <link rel="stylesheet" href="%(prefix)sassets/css/main.css">
 %(head_extra)s
 </head>
@@ -822,7 +1011,7 @@ SHELL = """<!DOCTYPE html>
 
 <div class="toast" id="toast"></div>
 
-<script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";</script>
+<script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";window.SYS_ANALYTICS=%(analytics_json)s;</script>
 <script src="%(prefix)sassets/js/app.js"></script>
 </body>
 </html>
@@ -864,7 +1053,7 @@ def main():
         s = os.path.join(SRC, src_sub)
         if os.path.isdir(s):
             shutil.copytree(s, os.path.join(DIST, "assets", dist_sub), dirs_exist_ok=True)
-    for sub in ("covers", "avatars", "fonts", "img"):
+    for sub in ("covers", "avatars", "fonts", "img", "og"):
         s = os.path.join(SRC, "assets", sub)
         if os.path.isdir(s):
             shutil.copytree(s, os.path.join(DIST, "assets", sub), dirs_exist_ok=True)

@@ -897,6 +897,103 @@ main { position: relative; z-index: 1; }
 .plat-card .pname { font-size: 14.5px; font-weight: 500; color: var(--blue-800); }
 .plat-card .pdesc { font-size: 12.5px; color: var(--faint); }
 
+/* ====================== 筛选与视图切换 ====================== */
+.view-switch { margin-left: auto; }
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 18px;
+}
+.filter-label {
+  font-size: 12.5px;
+  color: var(--faint);
+  margin-right: 2px;
+}
+.filter-empty {
+  padding: 34px 0;
+  text-align: center;
+  color: var(--faint);
+  font-size: 13.5px;
+}
+.filtered-out { display: none !important; }
+
+/* 时间轴：年份分隔条横跨整行 */
+.grid.timeline { display: grid; }
+.grid.timeline .year-mark {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 14px 0 2px;
+}
+.grid.timeline .year-mark:first-child { margin-top: 0; }
+.ym-num {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--blue-700);
+  letter-spacing: .04em;
+  flex: none;
+}
+.ym-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--blue-300), var(--line-soft));
+}
+
+/* ====================== 统计页 ====================== */
+.stat-note {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--faint);
+  line-height: 1.75;
+}
+.stat-note.ok { color: #1f7d72; }
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+.bar-year {
+  flex: none;
+  min-width: 76px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: right;
+}
+.bar-track {
+  flex: 1;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--blue-50);
+  overflow: hidden;
+}
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--blue-500);
+  transition: width var(--t-slow);
+}
+.bar-fill.alt { background: var(--blue-300); }
+.bar-num {
+  flex: none;
+  min-width: 46px;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.stat-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 26px;
+  margin-top: 34px;
+}
+
 /* ====================== 页脚 ====================== */
 footer {
   margin-top: 60px;

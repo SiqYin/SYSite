@@ -24,32 +24,32 @@ python scripts/list_ids.py --type video   # 列出内容 id，方便填策展配
 
 ## 页面结构
 
-每种语言各生成 7 个页面：
+每种语言各生成 8 个页面：
 
 | 页面 | 内容 |
 |---|---|
 | `index.html` | 首页：精选三栏 + 各区块预览 |
-| `videos.html` | 全部视频，带排序 |
-| `music.html` | 全部音乐（逐曲小卡片），带排序 |
+| `videos.html` | 全部视频，带排序 / 筛选 / 时间轴 |
+| `music.html` | 全部音乐（逐曲小卡片），带排序 / 筛选 |
 | `articles.html` | 文集与全部文章 |
 | `projects.html` | 开源项目，按更新时间倒序 |
+| `stats.html` | 数据统计 |
 | `about.html` | 关于、平台入口、数据概览 |
 | `search.html` | 站内搜索（本地过滤，不请求第三方） |
 
-首页的精选区是三栏并排：**置顶视频**（带关注/未关注开关）、**精选音乐**（热度前三）、
-**精选视频**（热度前三），下面是**精选项目**。
+首页的精选区是三栏并排：**精选视频**、**精选音乐**、**精选吴语视频**，
+每栏默认露 3 条、可向下拉到前 20 名（榜单上限由 `config/site.json` 的
+`featured.maxItems` 控制）。精选视频/音乐跟随排序实时变化；
+精选吴语视频取自某个视频合集（`featured.wuSource`，默认「吴越春秋」），按播放量排序。
 
-> 精选音乐/视频不是写死的：它们跟着「视频投稿 / 音乐」区块当前排在最前的三条走，
-> 用户切换排序方式或正倒序时，精选也会同步变化。
+## 排序、筛选与视图
 
-## 排序
+视频与音乐区块都支持下面这些操作，**全部在浏览器端完成，站点仍是纯静态**：
 
-视频与音乐各带一组排序控件，**全部在浏览器端完成，站点仍是纯静态**。
-
-- 排序依据：投稿时间 / 热度
-- 方向：正序 / 倒序
-- **默认：热度倒序**（最火的排最上面），服务端也按这个顺序渲染，首屏即一致
-- 重排后自动重新折叠并播放柔和过渡
+- **排序**：热度（左，默认）/ 投稿时间（右），可正序倒序
+- **筛选**：视频按年份 + 合集；音乐按年份 + 专辑（「其他」= 未归入任何合集）
+- **视图**：网格 / 时间轴（时间轴按年份插入分隔条，随排序与筛选重算）
+- 几项操作互相影响，所以由同一份状态驱动、统一重算，避免折叠计数错乱
 
 热度字段的取舍：
 
@@ -58,6 +58,32 @@ python scripts/list_ids.py --type video   # 列出内容 id，方便填策展配
 | B 站视频 | 播放量 | 真实且分散 |
 | 网易云歌曲 | 评论数 | 官方 `popularity` 只有 5 档，43 首里 29 首并列为 10，排不出名次 |
 | GitHub 项目 | Star 数 | 同时按 `pushed_at` 倒序排列 |
+
+## 分享卡片
+
+`scripts/build_og.py` 用霞鹜文楷为「4 种语言 × 7 个页面」生成 1200×630 的
+Open Graph 卡片（共 28 张，约 31 KB/张），页面里已带
+`og:*`、`twitter:card`、`canonical` 与 `hreflang`。
+
+**注意**：`og:image` 必须是绝对地址，站点正式域名写在 `config/site.json` 的
+`site.url`（当前是 `https://siqyin.github.io/SYSite`）。换域名时记得改这里。
+
+## 数据统计与访问计数
+
+`stats.html` 的数字全部由构建期快照算出（内容量、总播放、总评论、总时长、
+年度发布趋势、播放/评论前 10、平台分布），随每次更新自动重算。
+
+**访问计数默认关闭**，原因很实际：GitHub Pages 是纯静态托管，没有后端，
+真要做访客计数必须有一个计数端点。做法是自建一个极简端点
+（Cloudflare Worker + KV 免费额度就够，约 20 行代码），然后填进配置：
+
+```json
+"analytics": { "enable": true, "endpoint": "https://your-worker.workers.dev/hit", "site": "SYSite" }
+```
+
+前端只会发**一次** `GET`，`credentials: omit`、`referrerPolicy: no-referrer`，
+不设 Cookie、不记录 IP、不做任何个人标识，只累加总量。
+没填 endpoint 时页面会明确显示「未启用」而不是假装有数据。
 
 ## 多语言
 
@@ -119,10 +145,17 @@ B 站对关注者与未关注者展示不同置顶，但接口**只对外暴露�
 
 ## 定时自动更新
 
-- **GitHub Actions**：`.github/workflows/update.yml`
-  每 3 小时跑一遍采集→构建→部署到 Pages；内容有变化才提交快照。
-- **本地巡检**：WorkBuddy 定时任务「雪萤小驿 · 每 3 小时内容巡检」，
-  跑一遍构建并汇报新增了哪些内容。
+完全由 **GitHub Actions** 负责（`.github/workflows/update.yml`）：
+每 3 小时（UTC cron `23 */3 * * *`）跑一遍
+采集 → 封面 → 分享卡片 → 渲染 → 字体子集 → 部署到 Pages，
+内容有变化才提交 `data/` 与 `src/assets/`。
+也可以在 Actions 页面手动触发（workflow_dispatch）。
+
+首次需要在仓库 **Settings → Pages → Source** 里选 **GitHub Actions**，
+否则 deploy 作业会失败（采集与构建部分不受影响）。
+
+仓库地址：https://github.com/SiqYin/SYSite
+线上地址：https://siqyin.github.io/SYSite/
 
 ## 失败降级
 
@@ -141,9 +174,11 @@ scripts/
   adapter_*.py          三个平台的采集适配器
   collect_all.py        采集编排 + 失败降级
   build_assets.py       封面下载 / 压缩 / 自托管
+  build_og.py           分享卡片（Open Graph 图）生成
   build_site.py         多语言多页面静态渲染
   build_font.py         字体子集化
   list_ids.py           列出内容 id，方便填策展配置
+  build_all.py          一键串联全流程
 src/                    模板资源（样式、脚本、四语言文案、生成物）
 dist/                   构建产物（部署目录，不进仓库）
 ```

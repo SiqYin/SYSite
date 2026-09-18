@@ -18,6 +18,7 @@ ROOT = os.path.dirname(HERE)
 STEPS = [
     ("采集数据", ["collect_all.py"]),
     ("处理封面", ["build_assets.py"]),
+    ("生成分享卡片", ["build_og.py"]),
     ("渲染站点", ["build_site.py"]),
     ("字体子集", ["build_font.py"]),
 ]
