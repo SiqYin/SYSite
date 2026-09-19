@@ -1219,7 +1219,8 @@
     mode: "shuffle",   // shuffle | order | reverse | loop
     queue: [],         // 第一轮乱序队列
     firstRoundDone: false,
-    enabled: true
+    enabled: true,
+    roundOne: false
   };
 
   function bgmAsset(name) { return (window.SYS_PREFIX || "") + "assets/" + name; }
@@ -1299,6 +1300,13 @@
   /* 播放队列逻辑：
      - 首次进入（用户没拖拽过）→ 前 initialCount 首乱序播一轮 → 之后进入吴语歌单部分按顺序循环
      - 用户拖拽后 → 按新顺序，配合当前模式（顺序/逆序/乱序/单曲循环）播放 */
+  function bgmCurrent() {
+    return bgm.queue[bgm.idx] || bgm.list[0] || null;
+  }
+
+  /* 兼容旧引用 */
+  function buildBgmQueue() { buildQueue(); }
+
   function buildQueue() {
     var list = bgm.list;
     if (bgm.userReordered) {
