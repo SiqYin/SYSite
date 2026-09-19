@@ -588,6 +588,7 @@
 
 
   function nextTrack(step) {
+    if (!el || !el.audio) return;
     if (!pl || pl.length < 2) return;
     plIdx = (plIdx + step + pl.length) % pl.length;
     lastLrcIdx = -1;
