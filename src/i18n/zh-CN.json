@@ -152,5 +152,9 @@
   "featured.wuyue_music": "精选吴语音乐",
   "bgm.already": "已在播放单",
   "player.retry": "重试",
-  "player.useOfficial": "用官方播放器"
+  "player.useOfficial": "用官方播放器",
+  "player.lyricDrag": "上下拖动可跳转播放位置",
+  "player.lyricsBar": "歌词",
+  "player.empty": "这首歌暂时没有歌词",
+  "bgm.unknown": "未知曲目"
 }

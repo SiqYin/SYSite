@@ -1145,6 +1145,20 @@ SHELL = """<!DOCTYPE html>
   </div>
 </div>
 
+<!-- 下方一级弹窗：歌词细长条。与上方播放器弹窗同级、同时出现，一上一下排列。
+     白底、深蓝字，只显示当前行及其上下各 2 行（共 5 行），右侧仅一个上下拉环。 -->
+<div class="lyr-mask" id="lyr-mask" aria-hidden="true">
+  <div class="lyr-box" id="lyr-box">
+    <div class="lyr-clip" id="lyr-clip">
+      <div class="lyr-track" id="lyr-track"></div>
+    </div>
+    <div class="lyr-grip" id="lyr-grip" role="slider" tabindex="0" aria-label="seek">
+      <span class="lyr-grip-rail"></span>
+      <span class="lyr-grip-knob" id="lyr-grip-knob"></span>
+    </div>
+  </div>
+</div>
+
 <div class="bgm-panel" id="bgm-panel" role="dialog" aria-modal="false" aria-label="BGM playlist">
   <div class="bgp-head">
     <span class="bgp-title" id="bgp-title">BGM</span>

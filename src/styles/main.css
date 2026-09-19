@@ -951,6 +951,164 @@ main { position: relative; z-index: 1; }
   .op-q { flex-wrap: wrap; }
 }
 
+/* ====================== 音频：两个一级弹窗 ======================
+   上方 = 播放器弹窗（从底部大弹窗上移，占约 70% 屏高，偏上侧）
+   下方 = 歌词细长条（白底深蓝字，5 行轮转，右侧单拉环）
+   两者是同级的第一级弹窗，同时出现，一上一下排列。 */
+:root { --lyr-line: 48px; --lyr-row: #9fb3c6; --lyr-cur: #123a5c; }
+
+.modal-mask.audio-mode { align-items: flex-start; padding: 5vh 22px 0; }
+.modal-mask.audio-mode .modal {
+  height: 70vh;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-mask.audio-mode .modal-stage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 16px;
+}
+.modal-mask.audio-mode .modal-foot { flex: none; }
+
+.lyr-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(5vh + 70vh + 14px) 22px 0;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--t-mid), visibility var(--t-mid);
+}
+.lyr-mask.open { opacity: 1; visibility: visible; }
+.lyr-box {
+  pointer-events: auto;
+  position: relative;
+  width: 100%;
+  max-width: 880px;
+  display: flex;
+  align-items: stretch;
+  padding: 10px 6px 10px 20px;
+  background: #ffffff;
+  border-radius: var(--r-xl);
+  box-shadow: 0 14px 40px rgba(15, 47, 71, .22);
+  transform: translateY(14px) scale(.985);
+  transition: transform var(--t-mid);
+}
+.lyr-mask.open .lyr-box { transform: none; }
+.lyr-clip {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: calc(5 * var(--lyr-line));
+  overflow: hidden;
+}
+.lyr-track {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  transition: transform .42s var(--ease);
+  will-change: transform;
+}
+.lyr-line {
+  height: var(--lyr-line);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  text-align: center;
+  padding: 0 6px;
+  font-size: 17px;
+  line-height: 1.2;
+  color: var(--lyr-row);                 /* 未读到 / 已读过：灰色 */
+  cursor: pointer;
+  transition: color .3s var(--ease), font-size .3s var(--ease), opacity .3s var(--ease);
+}
+.lyr-line:hover { color: #6f8ba4; }
+.lyr-line.on {                          /* 当前行：深蓝、更大、更粗 */
+  color: var(--lyr-cur);
+  font-size: 24px;
+  font-weight: 700;
+}
+.lyr-txt { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lyr-tr {
+  display: none;
+  font-size: 13px;
+  font-weight: 400;
+  opacity: .82;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lyr-box:not(.no-tr) .lyr-line.on .lyr-tr { display: block; }
+.lyr-box.no-tr .lyr-line { font-size: 18px; }
+.lyr-box.no-tr .lyr-line.on { font-size: 25px; }
+.lyr-box .lyr-empty { color: var(--lyr-row); font-size: 16px; text-align: center; padding: 60px 0; }
+
+/* 右侧上下拉环（只有这一个） */
+.lyr-grip {
+  position: relative;
+  width: 24px;
+  flex: none;
+  cursor: ns-resize;
+  touch-action: none;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 5px 0;
+}
+.lyr-grip-rail { width: 5px; border-radius: 3px; background: #dbe7f2; display: block; height: 100%; }
+.lyr-grip-knob {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2980b9;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(15, 47, 71, .3);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: top .12s linear;
+}
+.lyr-grip.dragging .lyr-grip-rail, .lyr-grip:hover .lyr-grip-rail { background: #c3d8ea; }
+
+/* 播放器弹窗里的附加控件行（译文开关 + 音质） */
+.op-extras { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.op-extras .op-tr-toggle { margin-left: 0; }
+.op-extras .op-q { margin-left: auto; }
+
+@media (max-width: 760px) {
+  /* 小屏：播放器压到 58vh，行高缩到 40px，保证下方歌词条完整可见 */
+  .modal-mask.audio-mode { padding: 4vh 12px 0; }
+  .modal-mask.audio-mode .modal { height: 58vh; max-height: 58vh; }
+  .lyr-mask { padding: calc(4vh + 58vh + 10px) 12px 0; }
+  :root { --lyr-line: 40px; }
+  .lyr-box { padding: 8px 4px 8px 12px; }
+  .lyr-line { font-size: 15px; }
+  .lyr-line.on { font-size: 20px; }
+  .lyr-box.no-tr .lyr-line { font-size: 16px; }
+  .lyr-box.no-tr .lyr-line.on { font-size: 21px; }
+}
+/* 横屏手机等「矮屏」：进一步压缩，避免歌词条被挤出可视区 */
+@media (max-height: 560px) {
+  .modal-mask.audio-mode { padding: 2vh 12px 0; }
+  .modal-mask.audio-mode .modal { height: 52vh; max-height: 52vh; }
+  .lyr-mask { padding: calc(2vh + 52vh + 8px) 12px 0; }
+  :root { --lyr-line: 34px; }
+  .lyr-line { font-size: 14px; }
+  .lyr-line.on { font-size: 18px; }
+}
+
 /* ====================== 弹窗（气泡播放器） ====================== */
 .modal-mask {
   position: fixed; inset: 0;

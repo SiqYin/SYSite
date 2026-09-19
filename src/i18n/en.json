@@ -152,5 +152,9 @@
   "featured.wuyue_music": "Featured Wu music",
   "bgm.already": "In playlist",
   "player.retry": "Retry",
-  "player.useOfficial": "Official player"
+  "player.useOfficial": "Official player",
+  "player.lyricDrag": "Drag up or down to seek",
+  "player.lyricsBar": "Lyrics",
+  "player.empty": "No lyrics for this track yet",
+  "bgm.unknown": "Unknown track"
 }

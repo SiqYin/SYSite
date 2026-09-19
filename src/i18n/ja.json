@@ -152,5 +152,9 @@
   "featured.wuyue_music": "特選呉語音楽",
   "bgm.already": "プレイリスト済み",
   "player.retry": "再試行",
-  "player.useOfficial": "公式プレイヤー"
+  "player.useOfficial": "公式プレイヤー",
+  "player.lyricDrag": "上下にドラッグしてシーク",
+  "player.lyricsBar": "歌詞",
+  "player.empty": "この曲には歌詞がありません",
+  "bgm.unknown": "不明な曲"
 }

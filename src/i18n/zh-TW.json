@@ -152,5 +152,9 @@
   "featured.wuyue_music": "精選吳語音樂",
   "bgm.already": "已在播放清單",
   "player.retry": "重試",
-  "player.useOfficial": "用官方播放器"
+  "player.useOfficial": "用官方播放器",
+  "player.lyricDrag": "上下拖動可跳轉播放位置",
+  "player.lyricsBar": "歌詞",
+  "player.empty": "這首歌暫時沒有歌詞",
+  "bgm.unknown": "未知曲目"
 }
