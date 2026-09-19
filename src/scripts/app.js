@@ -417,6 +417,7 @@
   }
 
   function paintVol() {
+    if (!el || !el.audio) return;
     var v = el.audio.muted ? 0 : el.audio.volume;
     el.volfill.style.width = (v * 100) + "%";
     el.volknob.style.left = (v * 100) + "%";
@@ -444,6 +445,7 @@
   }
 
   function syncProgress() {
+    if (!el || !el.audio) return;
     var a = el.audio;
     var d = a.duration || 0;
     var r = d ? (a.currentTime / d) * 100 : 0;
@@ -594,6 +596,7 @@
   }
 
   function syncLyrics() {
+    if (!el || !el.audio) return;
     if (!lrcLines.length || lrcLines[0].t === null) return;   // 未同步歌词不做高亮跟随
     var t = el.audio.currentTime + 0.15;
     var idx = -1;
