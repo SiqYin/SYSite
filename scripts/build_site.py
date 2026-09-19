@@ -519,10 +519,12 @@ class Builder:
         import hashlib as _h
         _js_path = os.path.join(SRC, "scripts", "app.js")
         asset_v = _h.sha256(open(_js_path, "rb").read()).hexdigest()[:10] if os.path.exists(_js_path) else "1"
+        # 构建标识：前端会把它挂到 <html data-build> 并打进 console，便于确认浏览器跑的是哪一版
+        build_id = time.strftime("%m%d-%H%M") + "-" + asset_v
 
         return SHELL % {
             "lang": esc(self.locale), "prefix": self.prefix, "title": esc(title),
-            "asset_v": asset_v,
+            "asset_v": asset_v, "build_id": build_id,
             "desc": esc(self.t("site.desc")), "brand": esc(self.t("site.name")),
             "nav": nav, "lang_btn": esc(self.t("lang.current")),
             "lang_menu": "".join(lang_items), "search_url": self.url("search"),
@@ -1180,7 +1182,7 @@ SHELL = """<!DOCTYPE html>
 
 <div class="toast" id="toast"></div>
 
-<script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";window.SYS_PREFIX="%(prefix)s";window.SYS_PLAYER=%(player_cfg)s;window.SYS_BGM_WU=%(bgm_wu)s;</script>
+<script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";window.SYS_PREFIX="%(prefix)s";window.SYS_PLAYER=%(player_cfg)s;window.SYS_BGM_WU=%(bgm_wu)s;window.SYS_BUILD="%(build_id)s";</script>
 <script src="%(prefix)sassets/js/app.js?v=%(asset_v)s"></script>
 </body>
 </html>

@@ -60,7 +60,7 @@
     if (bgm.audio) {
       bgmWasPlaying = !bgm.audio.paused || bgm.pendingPlay || bgm.needsUnmute;
       bgm.pendingPlay = false;
-      if (!bgm.audio.paused) bgm.audio.pause();
+      bgmPauseFade();               // 渐弱后再暂停（位置保留）
     }
     if (!mask) return;
     lastFocus = document.activeElement;
@@ -84,10 +84,17 @@
   }
 
   function inject(p) {
-    if (p.kind === "audio" && PLAYER_CFG.ownAudio && p.song) {
-      // 直链和歌词是构建期取的，首次点击时才按需拉取。
-      // **无论有没有直链都渲染自建播放器**：以前这里用 hasUrl 把守，一旦 player-data
-      // 缺失/过期就整块换成官方 iframe，封面、歌词、分享、加入 BGM 按钮会一起消失。
+    // songId 缺失时从官方播放地址反推（outchain?type=2&id=123），
+    // 这样即使卡片属性不全也不会掉进官方 iframe。
+    if (!p.song && p.embed && /music\.163\.com/.test(p.embed)) {
+      var mm = /[?&]id=(\d+)/.exec(p.embed);
+      if (mm) p.song = mm[1];
+    }
+    // 音频内容一律走自建播放器：**任何**条件（缺直链、缺 songId、配置写错）
+    // 都不允许用官方 iframe 顶替整块界面 —— 一旦顶替，封面、歌词、分享、
+    // 加入 BGM 按钮会一起消失，这正是反复出现的「播放界面又没了」。
+    if (p.kind !== "video" && p.song) {
+      // 直链和歌词是构建期取的，首次点击时才按需拉取
       loadAudioData().then(function () { renderAudio(p); }, function () { renderAudio(p); });
       return;
     }
@@ -359,7 +366,13 @@
     el.root.appendChild(el.audio);
     bindAudioEvents();
 
-    load(p);
+    try {
+      load(p);
+    } catch (e) {
+      // 极端情况下也不让弹窗变成空白：保留界面，给出问题态
+      if (window.console && console.warn) console.warn("[player] load failed", e);
+      try { showPlayerProblem(t("player.streamFail")); } catch (e2) {}
+    }
     el.audio.play().catch(function () { /* 自动播放被拦截时保持暂停态 */ });
   }
 
@@ -536,6 +549,8 @@
     if (item.cover) { el.art.src = item.cover; el.bg.style.backgroundImage = "url(" + item.cover + ")"; }
     el.prev.disabled = pl.length < 2;
     el.next.disabled = pl.length < 2;
+    // 底栏先建好并绑定：后面歌词/音源出任何问题都不会让「分享」「加入 BGM」消失
+    try { buildAndBindFoot(item); } catch (e) {}
 
     // 歌词：优先用 tlyric 当译文；没有 tlyric 时，尝试把内联在正文里的拼音抽出来当译文
     var mainLines = parseLrc(d.l);
@@ -595,15 +610,17 @@
       showPlayerProblem(t("player.notPlayable"));
     }
     paintVol();
-    mFoot.innerHTML = buildFoot(item);
+  }
 
+  /* 底栏：分享（生成分享小卡）+ 加入 BGM 播放单 */
+  function buildAndBindFoot(item) {
+    mFoot.innerHTML = buildFoot(item);
     var sh = document.getElementById("btn-share");
     if (sh) sh.addEventListener("click", function () { shareCardOf(item); });
     var ba = document.getElementById("btn-bgm-add");
     if (ba) {
-      // 检查是否已在播放单
-      loadBgmMeta(function () {
-        var inList = bgm.list.some(function(m){ return m.song === item.song; });
+      loadBgmMeta(function () {          // 已在播放单 → 直接显示禁用态
+        var inList = bgm.list.some(function (m) { return m.song === item.song; });
         if (inList) { ba.textContent = t("bgm.already"); ba.classList.add("bgm-added"); ba.disabled = true; }
       });
       ba.addEventListener("click", function () { bgmAdd(item.song, ba); });
@@ -786,11 +803,12 @@
     if (!mask) return;
     mask.classList.remove("open");
     document.body.style.overflow = "";
-    // 恢复 BGM 必须放在「弹窗标记已清除」之后：bgmPlayAt 看到弹窗还开着会直接让位
+    // 恢复 BGM 必须放在「弹窗标记已清除」之后：bgmPlayAt 看到弹窗还开着会直接让位。
+    // 已有音源 → 从暂停位置渐强续播（**不能重设 src**，否则会从头开始）；
+    // 没有音源（比如被 policy 拦住没起播过）→ 走正常起播
     if (resume && bgm.audio) {
-      bgm.audio.muted = false;
-      if (bgm.audio.paused || !bgm.audio.getAttribute("src")) bgmPlayAt(bgm.idx || 0);
-      else bgmTryPlay(bgm.audio);
+      if (!bgm.curUrl) bgmPlayAt(bgm.idx || 0);
+      else bgmResumeFade();          // 有音源 → 从暂停位置渐强续播
     }
     // 关闭即彻底停掉音频，避免后台继续播放
     if (el && el.audio) {
@@ -1419,7 +1437,9 @@
     queue: [],         // 第一轮乱序队列
     firstRoundDone: false,
     enabled: true,
-    roundOne: false
+    roundOne: false,
+    fadeBase: 0.55,     // 淡入淡出的目标音量（渐弱前的音量）
+    curUrl: ""          // 当前已加载的音源（判断"要不要重设 src"用）
   };
 
   function bgmAsset(name) { return (window.SYS_PREFIX || "") + "assets/" + name; }
@@ -1562,8 +1582,12 @@
   function bgmToggle() {
     var a = bgm.audio;
     if (!a) return;
-    if (a.paused) { if (!a.src) bgmPlayAt(bgm.idx || 0); else a.play().catch(function () {}); }
-    else a.pause();
+    if (a.paused) {
+      if (!bgm.curUrl) bgmPlayAt(bgm.idx || 0);
+      else bgmResumeFade();          // 手动继续也从原位置渐强
+    } else {
+      bgmPauseFade();                // 手动暂停也渐弱
+    }
     paintBgmBar();
   }
 
@@ -1628,11 +1652,63 @@
     bgm.cands = bgmCands(cur.song);
     bgm.ci = 0;
     if (!bgm.cands.length) { bgmAdvance(true); return; }
-    a.src = bgm.cands[0];
-    a.load();
+    // 音源没变就别重设 src —— 重设会把播放位置清零（这里用自维护变量判断，
+    // 不依赖 DOM 属性：src 属性在某些情况下读不到，误判会导致"从头开始播"）
+    if (bgm.curUrl !== bgm.cands[0]) {
+      bgm.curUrl = bgm.cands[0];
+      a.src = bgm.cands[0];
+      a.load();
+    }
+    if (!a.volume) a.volume = Number(bgm.fadeBase) || 0.55;
     bgmTryPlay(a);
     paintBgmActive();
     paintBgmBar();
+  }
+
+  /* ---- BGM 淡入淡出：让位给视频/音频时渐弱，回来后渐强并**从暂停位置续播** ---- */
+  var BGM_FADE_MS = 420;
+  function bgmFadeTo(target, ms, done) {
+    var a = bgm.audio;
+    if (!a) { if (done) done(); return; }
+    if (bgm.fadeTimer) { clearInterval(bgm.fadeTimer); bgm.fadeTimer = null; }
+    var from = Number(a.volume) || 0, t0 = Date.now();
+    bgm.fadeTimer = setInterval(function () {
+      var k = Math.min(1, (Date.now() - t0) / ms);
+      a.volume = Math.max(0, Math.min(1, from + (target - from) * k));
+      if (k >= 1) {
+        clearInterval(bgm.fadeTimer); bgm.fadeTimer = null;
+        if (done) done();
+      }
+    }, 30);
+  }
+  function bgmPauseFade() {
+    var a = bgm.audio;
+    if (!a || a.paused) return;
+    var vol = Number(a.volume) || 0;
+    if (!vol) { try { a.pause(); } catch (e) {} return; }
+    bgm.fadeBase = vol;
+    bgmFadeTo(0, BGM_FADE_MS, function () {
+      try { a.pause(); } catch (e) {}
+      a.volume = bgm.fadeBase;          // 还原音量，下次续播从它渐强
+    });
+  }
+  function bgmResumeFade() {
+    var a = bgm.audio;
+    if (!a) return;
+    var vol = Number(bgm.fadeBase) || Number(a.volume) || 0.55;
+    var pos = a.currentTime || 0;       // 记住位置：续播绝不能从头开始
+    a.volume = 0;
+    a.muted = false;
+    bgm.needsUnmute = false;
+    var pr = a.play();
+    if (pr && pr.catch) pr.catch(function () {
+      bgm.needsUnmute = true;
+      a.muted = true;
+      var pr2 = a.play();
+      if (pr2 && pr2.catch) pr2.catch(function () {});
+    });
+    if (isFinite(pos) && pos > 0) { try { a.currentTime = pos; } catch (e) {} }
+    bgmFadeTo(vol, BGM_FADE_MS);
   }
 
   /* 播放 BGM：先试有声（部分浏览器/站点已授权）；被自动播放策略拒绝就退到
@@ -1656,7 +1732,7 @@
   /* BGM 音源失败：沿候选链换源；连续多首都失败就停下，不再空转 */
   function bgmOnError() {
     var a = bgm.audio;
-    if (!a || !a.getAttribute("src")) return;
+    if (!a || !bgm.curUrl) return;
     bgm.ci = (bgm.ci || 0) + 1;
     if (bgm.cands && bgm.ci < bgm.cands.length) {
       a.src = bgm.cands[bgm.ci];
@@ -1836,6 +1912,14 @@
 
   /* ==================== 初始化 ==================== */
   document.addEventListener("DOMContentLoaded", function () {
+    // 构建标识：出问题时先确认浏览器跑的是哪一版（缓存排查）
+    try {
+      document.documentElement.setAttribute("data-build", window.SYS_BUILD || "?");
+      if (window.console && console.log) {
+        console.log("[雪萤小驿] build=" + (window.SYS_BUILD || "?") +
+                    " · 自建播放器=" + (PLAYER_CFG.ownAudio !== false ? "on" : "off"));
+      }
+    } catch (e) {}
     try { initBgm(); } catch (e) {}
     bindReveal();
     bindFilters();
