@@ -55,10 +55,11 @@
   var bgmWasPlaying = false;
 
   function openModal(p) {
-    // BGM 与站内播放互斥：打开音频弹窗时暂停 BGM，关闭时恢复
-    if (p.kind === "audio" && bgm.audio) {
-      bgmWasPlaying = bgm.audio && !bgm.audio.paused;
-      if (bgmWasPlaying) bgm.audio.pause();
+    // BGM 与站内播放互斥：打开任何弹窗（音频或视频）都暂停 BGM，关闭时恢复
+    if (bgm.audio) {
+      bgmWasPlaying = !bgm.audio.paused || bgm.pendingPlay;
+      bgm.pendingPlay = false;
+      if (!bgm.audio.paused) bgm.audio.pause();
     }
     if (!mask) return;
     lastFocus = document.activeElement;
@@ -350,7 +351,49 @@
     a.addEventListener("play", function () { el.toggle.innerHTML = icon("pause"); });
     a.addEventListener("pause", function () { el.toggle.innerHTML = icon("play"); });
     a.addEventListener("ended", function () { nextTrack(1); });
-    a.addEventListener("error", function () { fallbackToOfficial(t("player.streamFail")); });
+    a.addEventListener("error", function () {
+      // closeModal 拆除 src 时也会触发 error，此时不算失败
+      if (!a.src) return;
+      a._tries = (a._tries || 0) + 1;
+      var d = AUDIO[currentSong] || {};
+      var q = d.q || {};
+      // 1) 换低一档的直链重试（同一档可能只是偶发失败）
+      var order = ["320", "192", "128", "lossless"];
+      var next = null;
+      for (var k = 0; k < order.length; k++) {
+        if (q[order[k]] && q[order[k]] !== a.src) { next = q[order[k]]; break; }
+      }
+      if (a._tries <= 2 && next) {
+        a.src = next;
+        a.load();
+        a.play().catch(function () {});
+        return;
+      }
+      // 2) 直链整体过期（约 30 分钟时效）：重新拉 player-data（cron 每 20 分钟会刷新）再试一次
+      if (a._tries === 3) {
+        audioReady = null;
+        AUDIO = {};
+        loadAudioData().then(function () {
+          var d2 = AUDIO[currentSong] || {};
+          var q2 = d2.q || {};
+          var u2 = q2["320"] || q2["192"] || q2["128"] || q2.lossless;
+          if (u2 && u2 !== a.src) {
+            a.src = u2;
+            a.load();
+            a.play().catch(function () {});
+          } else {
+            fallbackToOfficial(t("player.streamFail"));
+          }
+        });
+        return;
+      }
+      fallbackToOfficial(t("player.streamFail"));
+    });
+    a.addEventListener("loadedmetadata", function () {
+      a._tries = 0;   // 成功载入就清零重试计数
+      el.dur.textContent = fmtTime(a.duration);
+      syncProgress();
+    });
 
     el.toggle.addEventListener("click", function () {
       if (a.paused) a.play().catch(function () {}); else a.pause();
@@ -659,8 +702,17 @@
   window.__sysLoadEnd = loadEnd;
 
   function closeModal() {
-    // 关闭弹窗时恢复 BGM
-    if (bgmWasPlaying && bgm.audio) { bgm.audio.play().catch(function(){}); bgmWasPlaying = false; }
+    // 关闭弹窗时恢复 BGM（关闭动作本身是用户手势，此时解除静音是允许的）
+    if (bgmWasPlaying && bgm.audio) {
+      bgm.audio.muted = false;
+      bgm.audio.play().catch(function () {});
+      bgmWasPlaying = false;
+    } else if (bgm.pendingPlay && bgm.audio) {
+      // 竞态场景：BGM 的 fetch 完成时弹窗已开，被标记为待播 —— 关弹窗后开播
+      bgm.pendingPlay = false;
+      bgm.audio.muted = false;
+      bgmPlayAt(bgm.idx || 0);
+    }
     if (!mask) return;
     mask.classList.remove("open");
     document.body.style.overflow = "";
@@ -1338,6 +1390,12 @@
         bgm.audio.preload = "none";
         bgm.audio.volume = 0.55;
         bgm.audio.addEventListener("ended", function () { bgmAdvance(true); });
+        // 直链过期时 BGM 会卡死：清掉数据强制重拉，跳下一首
+        bgm.audio.addEventListener("error", function () {
+          if (!bgm.audio || !bgm.audio.src) return;
+          PLAYER_DATA = null;
+          bgmAdvance(true);
+        });
         bgm.audio.addEventListener("timeupdate", bgmPaintProgress);
         bgm.audio.addEventListener("loadedmetadata", bgmPaintProgress);
         document.body.appendChild(bgm.audio);
@@ -1430,18 +1488,29 @@
   }
 
   function tryAutoStart() {
+    var a = bgm.audio;
+    if (!a) return;
+    // 浏览器策略：无用户手势时禁止有声自动播放，但允许静音自动播放。
+    // 所以先静音开播（页面一进来就有 BGM 在跑），用户首次「非内容」交互时再开声音。
+    a.muted = true;
     bgmPlayAt(0);
-    // 浏览器常阻止带声音的自动播放：首次交互时补一次
-    // 但如果交互的是 BGM 按钮或面板，不触发播放（让按钮只打开面板）
     var once = function (ev) {
-      if (ev.target && ev.target.closest && ev.target.closest("#bgm-btn, #bgm-panel")) return;
+      var tgt = ev.target;
+      // 点的是内容/播放器/BGM 控件 → 不抢声道，等弹窗关闭逻辑处理
+      if (tgt && tgt.closest && tgt.closest("[data-play], .modal-mask, #bgm-btn, #bgm-panel, #share-modal, .op-bubble")) {
+        return;
+      }
       document.removeEventListener("pointerdown", once, true);
       document.removeEventListener("keydown", once, true);
-      bgmPlayAt(bgm.idx || 0);   // 不检查 a.src，直接播（bgmPlayAt 自己会取直链）
+      if (bgm.audio) {
+        bgm.audio.muted = false;
+        if (bgm.audio.paused) bgmPlayAt(bgm.idx || 0);
+      }
     };
     document.addEventListener("pointerdown", once, true);
     document.addEventListener("keydown", once, true);
   }
+
 
   function bgmPlayAt(i) {
     var cur = bgm.queue[i];
@@ -1453,6 +1522,9 @@
     if (!PLAYER_DATA) {
       fetch(bgmAsset("player-data.json")).then(function (r) { return r.json(); }).then(function (j) {
         PLAYER_DATA = j || {};
+        // fetch 期间弹窗可能已经打开（点击竞态）：BGM 让位，标记待播
+        var mm = document.querySelector(".modal-mask");
+        if (mm && mm.classList.contains("open")) { bgm.pendingPlay = true; return; }
         bgmPlayAt(i);
       }).catch(function () {});
       return;
