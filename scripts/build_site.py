@@ -24,6 +24,7 @@ import html
 import hashlib
 import json
 import os
+import time
 import re
 import shutil
 import sys
@@ -1347,13 +1348,17 @@ def main():
     # 不塞进页面，避免四个语言版本各背一份。
     player = shared["snap"].get("player") or {}
     pd = {k: v for k, v in player.items() if v.get("q") or v.get("l")}
+    # 构建时间戳：前端据此判断「签名直链是否还新鲜」，过期就改用不过期的对外入口。
+    # 用 dict 包一层，避免污染按 songId 遍历的地方（如字体子集脚本）。
+    pd["__build"] = {"ts": int(time.time())}
     with open(os.path.join(DIST, "assets", "player-data.json"), "w", encoding="utf-8") as f:
         json.dump(pd, f, ensure_ascii=False, separators=(",", ":"))
     psz = os.path.getsize(os.path.join(DIST, "assets", "player-data.json"))
+    songs = {k: v for k, v in pd.items() if k != "__build"}
     print("  播放器数据：%d 首，%.0f KB（直链 %d 首 / 歌词 %d 首）"
-          % (len(pd), psz / 1024,
-             sum(1 for v in pd.values() if v.get("q")),
-             sum(1 for v in pd.values() if v.get("l"))))
+          % (len(songs), psz / 1024,
+             sum(1 for v in songs.values() if v.get("q")),
+             sum(1 for v in songs.values() if v.get("l"))))
 
     total = nfiles = 0
     for dp, dn, fn in os.walk(DIST):

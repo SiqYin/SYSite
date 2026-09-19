@@ -91,7 +91,7 @@
   "q.lossless": "无损",
   "q.label": "音质",
   "player.notPlayable": "这首歌暂时无法在站内播放",
-  "player.streamFail": "音源加载失败，已切换为官方播放器",
+  "player.streamFail": "音源加载失败，可重试或改用官方播放器",
   "player.note": "播放器由原平台提供，音画质量以原站为准",
   "footer.updated": "数据更新时间",
   "footer.generated": "本站由构建脚本自动生成",
@@ -150,5 +150,7 @@
   "bgm.blocked": "浏览器阻止了自动播放，轻触任意处开启 BGM",
   "bgm.close": "收起",
   "featured.wuyue_music": "精选吴语音乐",
-  "bgm.already": "已在播放单"
+  "bgm.already": "已在播放单",
+  "player.retry": "重试",
+  "player.useOfficial": "用官方播放器"
 }

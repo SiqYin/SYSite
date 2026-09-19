@@ -91,7 +91,7 @@
   "q.lossless": "Lossless",
   "q.label": "Quality",
   "player.notPlayable": "This track can't be played on this site yet",
-  "player.streamFail": "Stream failed to load — switched to the official player",
+  "player.streamFail": "Stream failed to load — retry, or use the official player",
   "player.note": "Player provided by the original platform; quality follows the source site",
   "footer.updated": "Data updated",
   "footer.generated": "Generated automatically by the build script",
@@ -150,5 +150,7 @@
   "bgm.blocked": "Your browser blocked autoplay. Tap anywhere to start BGM",
   "bgm.close": "Close",
   "featured.wuyue_music": "Featured Wu music",
-  "bgm.already": "In playlist"
+  "bgm.already": "In playlist",
+  "player.retry": "Retry",
+  "player.useOfficial": "Official player"
 }

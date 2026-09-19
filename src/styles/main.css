@@ -905,15 +905,42 @@ main { position: relative; z-index: 1; }
 .op-seek:hover .op-knob, .op-seek.dragging .op-knob { transform: translate(-50%, -50%) scale(1); }
 .op-vol { width: 82px; flex: none; }
 
-/* 兜底或播放失败时贴在播放器底部的一条说明 */
+/* 播放失败时贴在播放器底部的一条说明 + 两个入口（界面其它部分照常保留） */
 .op-fallback-note {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   padding: 10px 15px;
   font-size: 12.5px;
   background: rgba(255, 255, 255, .06);
   border-top: 1px solid rgba(255, 255, 255, .1);
-  opacity: .8;
   font-family: var(--font);
+}
+.op-fallback-note .op-fn-text { flex: 1 1 160px; opacity: .85; }
+.op-fn-btn {
+  flex: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  background: rgba(255, 255, 255, .1);
+  color: #fff;
+  transition: background .2s;
+}
+.op-fn-btn:hover { background: rgba(255, 255, 255, .22); }
+
+/* 官方播放器：只在用户主动点「用官方播放器」时以附加块出现，绝不替换自建界面 */
+.op-embed { margin-top: 12px; }
+.op-embed iframe {
+  width: 100%;
+  height: 86px;
+  border: 0;
+  border-radius: var(--r-md);
+  display: block;
 }
 
 @media (max-width: 760px) {

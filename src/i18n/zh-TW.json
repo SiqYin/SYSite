@@ -91,7 +91,7 @@
   "q.lossless": "無損",
   "q.label": "音質",
   "player.notPlayable": "這首歌暫時無法在站內播放",
-  "player.streamFail": "音源載入失敗，已切換為官方播放器",
+  "player.streamFail": "音源載入失敗，可重試或改用官方播放器",
   "player.note": "播放器由原平台提供，音畫品質以原站為準",
   "footer.updated": "資料更新時間",
   "footer.generated": "本站由建置腳本自動產生",
@@ -150,5 +150,7 @@
   "bgm.blocked": "瀏覽器封鎖了自動播放，輕觸任意處開啟 BGM",
   "bgm.close": "收起",
   "featured.wuyue_music": "精選吳語音樂",
-  "bgm.already": "已在播放清單"
+  "bgm.already": "已在播放清單",
+  "player.retry": "重試",
+  "player.useOfficial": "用官方播放器"
 }

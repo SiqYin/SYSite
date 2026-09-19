@@ -91,7 +91,7 @@
   "q.lossless": "ロスレス",
   "q.label": "音質",
   "player.notPlayable": "この曲はまだサイト内で再生できません",
-  "player.streamFail": "音源の読み込みに失敗したため、公式プレイヤーに切り替えました",
+  "player.streamFail": "音源の読み込みに失敗しました。再試行するか公式プレイヤーをご利用ください",
   "player.note": "プレイヤーは元プラットフォーム提供、品質は元サイトに準じます",
   "footer.updated": "データ更新日時",
   "footer.generated": "このサイトはビルドスクリプトで自動生成されています",
@@ -150,5 +150,7 @@
   "bgm.blocked": "ブラウザが自動再生をブロックしました。どこかタップしてBGMを開始",
   "bgm.close": "閉じる",
   "featured.wuyue_music": "特選呉語音楽",
-  "bgm.already": "プレイリスト済み"
+  "bgm.already": "プレイリスト済み",
+  "player.retry": "再試行",
+  "player.useOfficial": "公式プレイヤー"
 }
