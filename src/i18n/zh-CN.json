@@ -149,5 +149,6 @@
   "bgm.empty": "还没有曲目，去音乐页添加吧",
   "bgm.blocked": "浏览器阻止了自动播放，轻触任意处开启 BGM",
   "bgm.close": "收起",
-  "featured.wuyue_music": "精选吴语音乐"
+  "featured.wuyue_music": "精选吴语音乐",
+  "bgm.already": "已在播放单"
 }

@@ -52,7 +52,14 @@
   var mFoot = document.getElementById("m-foot");
   var lastFocus = null;
 
+  var bgmWasPlaying = false;
+
   function openModal(p) {
+    // BGM 与站内播放互斥：打开音频弹窗时暂停 BGM，关闭时恢复
+    if (p.kind === "audio" && bgm.audio) {
+      bgmWasPlaying = bgm.audio && !bgm.audio.paused;
+      if (bgmWasPlaying) bgm.audio.pause();
+    }
     if (!mask) return;
     lastFocus = document.activeElement;
     mTitle.textContent = p.title || "";
@@ -254,7 +261,8 @@
 
   function renderAudio(p) {
     var tpl =
-      '<div class="op" id="op">' +
+      // 上方大气泡：播放器主体
+      '<div class="op-bubble op-main" id="op">' +
       '  <div class="op-bg" id="op-bg"></div><div class="op-scrim"></div>' +
       '  <div class="op-player">' +
       '    <span class="op-art"><img id="op-art" alt=""></span>' +
@@ -273,19 +281,25 @@
       "      </div>" +
       '    </div>' +
       "  </div>" +
-      '  <div class="op-lywrap">' +
-      '    <div class="op-lyhead">' +
-      '      <span class="op-lylabel">' + esc(t("player.lyrics")) + "</span>" +
-      '      <button class="op-tr-toggle" id="op-tr" type="button" aria-pressed="true">' +
-      "        <span>" + esc(t("player.translation")) + "</span>" +
-      '        <span class="op-check"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span>' +
-      "      </button>" +
-      '      <span class="op-q" id="op-q"></span>' +
-      "    </div>" +
+      "</div>" +
+      // 下方小气泡：歌词
+      '<div class="op-bubble op-lybubble">' +
+      '  <div class="op-lyhead">' +
+      '    <span class="op-lylabel">' + esc(t("player.lyrics")) + "</span>" +
+      '    <button class="op-tr-toggle" id="op-tr" type="button" aria-pressed="true">' +
+      "      <span>" + esc(t("player.translation")) + "</span>" +
+      '      <span class="op-check"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span>' +
+      "    </button>" +
+      '    <span class="op-q" id="op-q"></span>' +
+      "  </div>" +
+      '  <div class="op-lybody">' +
       '    <div class="op-lyrics" id="op-lyrics"></div>' +
+      '    <div class="op-lydrag" id="op-lydrag" title="' + esc(t("player.lyrics")) + '">' +
+      '      <span class="op-lydrag-track"></span>' +
+      '      <span class="op-lydrag-knob" id="op-lydrag-knob"></span>' +
+      "    </div>" +
       "  </div>" +
       "</div>";
-
     mStage.innerHTML = tpl;
 
     el = {
@@ -357,6 +371,35 @@
         paintTrState();
       });
     }
+    bindLyricsDrag();
+  }
+
+  /* 歌词右侧拖拽控件：拖动 → 按比例跳转歌曲时间 */
+  function bindLyricsDrag() {
+    var bar = document.getElementById("op-lydrag");
+    if (!bar) return;
+    var knob = document.getElementById("op-lydrag-knob");
+    function ratioOf(ev) {
+      var r = bar.getBoundingClientRect();
+      return Math.max(0, Math.min(1, (ev.clientY - r.top) / (r.height || 1)));
+    }
+    bar.addEventListener("pointerdown", function (ev) {
+      ev.preventDefault();
+      bar.setPointerCapture && bar.setPointerCapture(ev.pointerId);
+      function seek(r) {
+        var a = el.audio;
+        if (a && isFinite(a.duration)) a.currentTime = a.duration * r;
+        if (knob) knob.style.top = (r * 100) + "%";
+      }
+      seek(ratioOf(ev));
+      function move(e2) { seek(ratioOf(e2)); }
+      function up() {
+        bar.removeEventListener("pointermove", move);
+        bar.removeEventListener("pointerup", up);
+      }
+      bar.addEventListener("pointermove", move);
+      bar.addEventListener("pointerup", up);
+    });
   }
 
   /* 译文开关：默认开。开启时按钮变色并在右下角带一个小勾，关闭则去掉并隐藏所有译文行。 */
@@ -407,6 +450,8 @@
     el.fill.style.width = r + "%";
     el.knob.style.left = r + "%";
     el.cur.textContent = fmtTime(a.currentTime);
+    var dk = document.getElementById("op-lydrag-knob");
+    if (dk && d) dk.style.top = (r) + "%";
     if (d && el.dur.textContent === "0:00") el.dur.textContent = fmtTime(d);
   }
 
@@ -489,7 +534,14 @@
     var sh = document.getElementById("btn-share");
     if (sh) sh.addEventListener("click", function () { shareCardOf(item); });
     var ba = document.getElementById("btn-bgm-add");
-    if (ba) ba.addEventListener("click", function () { bgmAdd(item.song); });
+    if (ba) {
+      // 检查是否已在播放单
+      loadBgmMeta(function () {
+        var inList = bgm.list.some(function(m){ return m.song === item.song; });
+        if (inList) { ba.textContent = t("bgm.already"); ba.classList.add("bgm-added"); ba.disabled = true; }
+      });
+      ba.addEventListener("click", function () { bgmAdd(item.song, ba); });
+    }
   }
 
   function paintQ() {
@@ -603,6 +655,8 @@
   window.__sysLoadEnd = loadEnd;
 
   function closeModal() {
+    // 关闭弹窗时恢复 BGM
+    if (bgmWasPlaying && bgm.audio) { bgm.audio.play().catch(function(){}); bgmWasPlaying = false; }
     if (!mask) return;
     mask.classList.remove("open");
     document.body.style.overflow = "";
@@ -1118,12 +1172,23 @@
         g.restore();
       } catch (e) {}
     }
-    g.fillStyle = "#e3eef8";
+    // 美观的封面占位：渐变 + 音符图标
+    var coverGrd = g.createLinearGradient(cx, cy, cx + cw, cy + ch);
+    coverGrd.addColorStop(0, "#2980b9");
+    coverGrd.addColorStop(1, "#1a5276");
+    g.fillStyle = coverGrd;
     roundRect(g, cx, cy, cw, ch, 24);
     g.fill();
+    // 音符图标
+    g.fillStyle = "rgba(255,255,255,0.25)";
+    g.font = "120px sans-serif";
+    g.textAlign = "center";
+    g.fillText("♪", cx + cw / 2, cy + ch / 2 + 40);
+    g.fillStyle = "rgba(255,255,255,0.5)";
+    g.font = "18px sans-serif";
+    g.fillText(t("site.name"), cx + cw / 2, cy + ch - 30);
     if (item.cover) {
       var im = new Image();
-      im.crossOrigin = "anonymous";
       im.onload = function () { drawCover(im); finish(); };
       im.onerror = function () { finish(); };
       im.src = item.cover;

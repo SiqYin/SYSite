@@ -149,5 +149,6 @@
   "bgm.empty": "Nothing here yet — add tracks from the music page",
   "bgm.blocked": "Your browser blocked autoplay. Tap anywhere to start BGM",
   "bgm.close": "Close",
-  "featured.wuyue_music": "Featured Wu music"
+  "featured.wuyue_music": "Featured Wu music",
+  "bgm.already": "In playlist"
 }

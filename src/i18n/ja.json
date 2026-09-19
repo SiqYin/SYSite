@@ -149,5 +149,6 @@
   "bgm.empty": "まだ曲がありません。音楽ページから追加してください",
   "bgm.blocked": "ブラウザが自動再生をブロックしました。どこかタップしてBGMを開始",
   "bgm.close": "閉じる",
-  "featured.wuyue_music": "特選呉語音楽"
+  "featured.wuyue_music": "特選呉語音楽",
+  "bgm.already": "プレイリスト済み"
 }

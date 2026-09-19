@@ -149,5 +149,6 @@
   "bgm.empty": "還沒有曲目，去音樂頁添加吧",
   "bgm.blocked": "瀏覽器封鎖了自動播放，輕觸任意處開啟 BGM",
   "bgm.close": "收起",
-  "featured.wuyue_music": "精選吳語音樂"
+  "featured.wuyue_music": "精選吳語音樂",
+  "bgm.already": "已在播放清單"
 }
