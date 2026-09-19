@@ -79,7 +79,8 @@
       // 直链和歌词是构建期取的，首次点击时才按需拉取
       loadAudioData().then(function () {
         var d = AUDIO[p.song];
-        if (d && d.u) renderAudio(p);
+        var hasUrl = d && d.q && (d.q["320"] || d.q["192"] || d.q["128"] || d.q.lossless);
+        if (hasUrl) renderAudio(p);
         else renderVideoOrEmbed(p);   // 没有直链 → 用官方播放器兜底
       });
       return;
@@ -1367,8 +1368,7 @@
       if (ev.target && ev.target.closest && ev.target.closest("#bgm-btn, #bgm-panel")) return;
       document.removeEventListener("pointerdown", once, true);
       document.removeEventListener("keydown", once, true);
-      var a = bgm.audio;
-      if (a && a.paused && a.src) { a.play().catch(function () {}); }
+      bgmPlayAt(bgm.idx || 0);   // 不检查 a.src，直接播（bgmPlayAt 自己会取直链）
     };
     document.addEventListener("pointerdown", once, true);
     document.addEventListener("keydown", once, true);
