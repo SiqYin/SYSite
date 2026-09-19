@@ -156,5 +156,9 @@
   "player.lyricDrag": "上下にドラッグしてシーク",
   "player.lyricsBar": "歌詞",
   "player.empty": "この曲には歌詞がありません",
-  "bgm.unknown": "不明な曲"
+  "bgm.unknown": "不明な曲",
+  "bgm.ask": "BGM を再生しますか？",
+  "bgm.askYes": "はい、再生",
+  "bgm.askNo": "いいえ",
+  "bgm.playing": "BGM を再生中"
 }

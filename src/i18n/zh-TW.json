@@ -156,5 +156,9 @@
   "player.lyricDrag": "上下拖動可跳轉播放位置",
   "player.lyricsBar": "歌詞",
   "player.empty": "這首歌暫時沒有歌詞",
-  "bgm.unknown": "未知曲目"
+  "bgm.unknown": "未知曲目",
+  "bgm.ask": "要為你播放背景音樂嗎？",
+  "bgm.askYes": "好的，播放",
+  "bgm.askNo": "不用了",
+  "bgm.playing": "正在播放背景音樂"
 }

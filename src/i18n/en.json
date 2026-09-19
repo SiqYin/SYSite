@@ -156,5 +156,9 @@
   "player.lyricDrag": "Drag up or down to seek",
   "player.lyricsBar": "Lyrics",
   "player.empty": "No lyrics for this track yet",
-  "bgm.unknown": "Unknown track"
+  "bgm.unknown": "Unknown track",
+  "bgm.ask": "Play background music?",
+  "bgm.askYes": "Yes, play it",
+  "bgm.askNo": "No, thanks",
+  "bgm.playing": "Background music is playing"
 }

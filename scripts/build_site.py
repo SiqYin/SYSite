@@ -1194,6 +1194,17 @@ SHELL = """<!DOCTYPE html>
   </div>
 </div>
 
+<!-- 进入页面时询问是否播放 BGM（文案走页面语言的 i18n） -->
+<div class="ask-bgm" id="ask-bgm" role="dialog" aria-modal="false">
+  <div class="abk-box">
+    <span class="abk-text" id="ask-bgm-text"></span>
+    <div class="abk-btns">
+      <button class="abk-btn primary" id="ask-bgm-yes" type="button"></button>
+      <button class="abk-btn" id="ask-bgm-no" type="button"></button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>window.SYS_I18N=%(i18n_json)s;window.SYS_LOCALE="%(lang)s";window.SYS_PREFIX="%(prefix)s";window.SYS_PLAYER=%(player_cfg)s;window.SYS_BGM_WU=%(bgm_wu)s;window.SYS_BUILD="%(build_id)s";</script>
@@ -1311,7 +1322,7 @@ def main():
                 continue
             name = "%s-%s.png" % (it["platform"], re.sub(r"[^A-Za-z0-9_.-]", "_", str(it["nativeId"]))[:60])
             try:
-                segno.make(url, error="m").save(os.path.join(qr_dir, name), scale=4, border=1)
+                segno.make(url, error="m").save(os.path.join(qr_dir, name), scale=8, border=4)
                 qr_count += 1
             except Exception:  # noqa: BLE001
                 continue

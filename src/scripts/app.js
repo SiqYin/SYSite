@@ -1324,134 +1324,9 @@
   // 当前播放/展示的条目（弹窗打开时记录）
   var currentItem = null;
 
-  function shareCardOf(item) {
-    if (!item) return;
-    var W = 640, H = 900;
-    var cv = document.createElement("canvas");
-    cv.width = W; cv.height = H;
-    var g = cv.getContext("2d");
-
-    // 背景
-    var grd = g.createLinearGradient(0, 0, W, H);
-    grd.addColorStop(0, "#f2f8fd");
-    grd.addColorStop(1, "#dce9f5");
-    g.fillStyle = grd;
-    g.fillRect(0, 0, W, H);
-
-    // 顶部站点名
-    g.fillStyle = "#1a5276";
-    g.font = "500 30px " + getComputedStyle(document.body).fontFamily;
-    g.textAlign = "center";
-    g.fillText(t("site.name"), W / 2, 76);
-
-    // 封面
-    var cx = 100, cy = 110, cw = 440, ch = 440;
-    function drawCover(img) {
-      try {
-        var r = Math.max(cw / img.width, ch / img.height);
-        var dw = img.width * r, dh = img.height * r;
-        g.save();
-        g.beginPath();
-        roundRectPath(g, cx, cy, cw, ch, 24);
-        g.clip();
-        g.drawImage(img, cx + (cw - dw) / 2, cy + (ch - dh) / 2, dw, dh);
-        g.restore();
-      } catch (e) {}
-    }
-    // 美观的封面占位：渐变 + 音符图标
-    var coverGrd = g.createLinearGradient(cx, cy, cx + cw, cy + ch);
-    coverGrd.addColorStop(0, "#2980b9");
-    coverGrd.addColorStop(1, "#1a5276");
-    g.fillStyle = coverGrd;
-    roundRect(g, cx, cy, cw, ch, 24);
-    g.fill();
-    // 音符图标
-    g.fillStyle = "rgba(255,255,255,0.25)";
-    g.font = "120px sans-serif";
-    g.textAlign = "center";
-    g.fillText("♪", cx + cw / 2, cy + ch / 2 + 40);
-    g.fillStyle = "rgba(255,255,255,0.5)";
-    g.font = "18px sans-serif";
-    g.fillText(t("site.name"), cx + cw / 2, cy + ch - 30);
-    // 封面：优先复用弹窗里**已加载好**的封面图（不用再走网络，必定成功）
-    var ready = loadedCoverImg();
-    if (ready) {
-      drawCover(ready);
-      finish();
-    } else if (item.cover) {
-      var im = new Image();
-      var done2 = false;
-      var go = function () { if (done2) return; done2 = true; finish(); };
-      im.onload = function () {
-        if (im.naturalWidth > 0) drawCover(im);
-        else console.warn("[share] 封面尺寸为 0", item.cover);
-        go();
-      };
-      im.onerror = function () { console.warn("[share] 封面加载失败", item.cover); go(); };
-      im.src = assetUrl(item.cover);
-      setTimeout(go, 1500);        // 兜底：加载卡住也要出图
-    } else {
-      finish();
-    }
-
-    var done = false;
-    function finish() {
-      if (done) return;
-      done = true;
-      // 标题（最多两行）
-      g.fillStyle = "#1a2a3a";
-      g.font = "500 30px " + getComputedStyle(document.body).fontFamily;
-      g.textAlign = "center";
-      var lines = wrapText(g, item.title || "", W - 120);
-      var ly = cy + ch + 62;
-      for (var i = 0; i < Math.min(lines.length, 3); i++) {
-        g.fillText(lines[i], W / 2, ly + i * 44);
-      }
-      // 副标题：专辑 + 平台
-      g.fillStyle = "#5b7f9e";
-      g.font = "400 22px " + getComputedStyle(document.body).fontFamily;
-      var sub = [item.album, item.platform].filter(Boolean).join(" · ");
-      g.fillText(sub, W / 2, ly + Math.min(lines.length, 3) * 44 + 30);
-      // 二维码
-      var qy = H - 250;
-      g.fillStyle = "#ffffff";
-      roundRect(g, W / 2 - 110, qy - 14, 220, 220, 18);
-      g.fill();
-      if (item.qr) {
-        var q = new Image();
-        q.onload = function () {
-          if (q.naturalWidth > 0) {
-            try { g.drawImage(q, W / 2 - 82, qy, 164, 164); } catch (e) { qrFallback(); }
-          } else { qrFallback(); }
-          tail();
-        };
-        q.onerror = function () { console.warn("[share] 二维码加载失败", item.qr); qrFallback(); tail(); };
-        q.src = assetUrl(item.qr);
-      } else {
-        qrFallback();
-        tail();
-      }
-      function qrFallback() {
-        g.fillStyle = "#c8d8e6";
-        g.font = "400 18px " + getComputedStyle(document.body).fontFamily;
-        g.textAlign = "center";
-        g.fillText(t("share.scan"), W / 2, qy + 92);
-      }
-      function tail() {
-        g.fillStyle = "#5b7f9e";
-        g.font = "400 20px " + getComputedStyle(document.body).fontFamily;
-        g.fillText(t("share.scan"), W / 2, H - 30);
-        var url = "";
-        try { url = cv.toDataURL("image/png"); }
-        catch (e) { console.warn("[share] 画布导出失败", e); toast(t("player.copyFail")); return; }
-        showShareModal(url, item);
-      }
-    }
-  }
-
+  /* 圆角矩形路径：**必须自带 beginPath** —— 少了它，下一次 roundRect 会把
+     上一段路径一起 fill 掉（分享卡封面曾被二维码白框整块涂白，就是这么来的）。*/
   function roundRectPath(g, x, y, w, h, r) {
-    // 必须重置路径：否则第二次调用会把上一次的矩形一起 fill 掉
-    // （曾导致分享卡画二维码白框时把封面也涂成白色 → 两个空白框）
     g.beginPath();
     g.moveTo(x + r, y);
     g.arcTo(x + w, y, x + w, y + h, r);
@@ -1471,6 +1346,185 @@
     }
     if (cur) out.push(cur);
     return out;
+  }
+
+  /** 按最大行数截断并加省略号 */
+  function fitLines(g, text, maxW, maxLines) {
+    var raw = wrapText(g, String(text || ""), maxW);
+    if (raw.length <= maxLines) return raw;
+    var out = raw.slice(0, maxLines);
+    var last = out[maxLines - 1];
+    while (last.length > 1 && g.measureText(last + "…").width > maxW) last = last.slice(0, -1);
+    out[maxLines - 1] = last + "…";
+    return out;
+  }
+
+  /* 分享小卡：封面 + 标题 + 二维码。
+     三条硬约束（全是踩过的坑）：
+       1. **文字与二维码分区排布**，绝不重叠 —— 视频长标题曾被二维码白框整块盖住
+       2. 二维码按整数倍绘制并关掉插值 —— 1 bit 图被 1.32× 插值放大后糊成灰块，
+          看起来就像"没加载出来"；现在 PNG 用 scale=8/border=4 生成，绘制时 0.5× 取整
+       3. 音频卡保持正方形封面（640×980 竖版）；视频卡用长方形横版（880×560） */
+  function shareCardOf(item) {
+    if (!item) return;
+    var isVideo = item.kind === "video";
+    var W = isVideo ? 880 : 640;
+    var H = isVideo ? 560 : 980;
+    var cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    var g = cv.getContext("2d");
+    if (!g) { toast(t("player.copyFail")); return; }
+    var FONT = getComputedStyle(document.body).fontFamily;
+
+    // 背景
+    var grd = g.createLinearGradient(0, 0, W, H);
+    grd.addColorStop(0, "#f2f8fd");
+    grd.addColorStop(1, "#dce9f5");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, W, H);
+
+    // —— 版面分区：每块占互不相交的区间，从结构上杜绝重叠 ——
+    var L = isVideo ? {
+      brand: { x: 40, y: 58, size: 26, align: "left" },
+      cover: { x: 40, y: 122, w: 520, h: 292 },                        // 16:9
+      col: 592, colW: 248,
+      title: { y: 116, lineH: 36, max: 3, size: 26 },
+      subY: 226, subSize: 20,
+      qr: { box: 190, x: 592, y: 268, size: 164 },
+      capY: 498, capSize: 19
+    } : {
+      brand: { x: W / 2, y: 64, size: 30, align: "center" },
+      cover: { x: 100, y: 104, w: 440, h: 440 },
+      col: 0, colW: W - 120,
+      title: { y: 604, lineH: 44, max: 2, size: 30 },
+      subY: 700, subSize: 22,
+      qr: { box: 200, x: (W - 200) / 2, y: 726, size: 164 },
+      capY: 962, capSize: 20
+    };
+    var titleX = isVideo ? L.col : W / 2;
+    var capX = isVideo ? L.qr.x + L.qr.box / 2 : W / 2;
+
+    // 站点名
+    g.fillStyle = "#1a5276";
+    g.font = "500 " + L.brand.size + "px " + FONT;
+    g.textAlign = L.brand.align;
+    g.fillText(t("site.name"), L.brand.x, L.brand.y);
+
+    // 封面占位（先画，加载成功再覆盖）
+    var coverGrd = g.createLinearGradient(L.cover.x, L.cover.y, L.cover.x + L.cover.w, L.cover.y + L.cover.h);
+    coverGrd.addColorStop(0, "#2980b9");
+    coverGrd.addColorStop(1, "#1a5276");
+    g.fillStyle = coverGrd;
+    roundRect(g, L.cover.x, L.cover.y, L.cover.w, L.cover.h, 24);
+    g.fill();
+    g.fillStyle = "rgba(255,255,255,0.25)";
+    g.font = "96px sans-serif";
+    g.textAlign = "center";
+    g.fillText("♪", L.cover.x + L.cover.w / 2, L.cover.y + L.cover.h / 2 + 34);
+    g.fillStyle = "rgba(255,255,255,0.5)";
+    g.font = "17px sans-serif";
+    g.fillText(t("site.name"), L.cover.x + L.cover.w / 2, L.cover.y + L.cover.h - 26);
+
+    function drawCover(img) {
+      try {
+        var r = Math.max(L.cover.w / img.width, L.cover.h / img.height);
+        var dw = img.width * r, dh = img.height * r;
+        g.save();
+        g.beginPath();
+        roundRectPath(g, L.cover.x, L.cover.y, L.cover.w, L.cover.h, 24);
+        g.clip();
+        g.drawImage(img, L.cover.x + (L.cover.w - dw) / 2, L.cover.y + (L.cover.h - dh) / 2, dw, dh);
+        g.restore();
+      } catch (e) { console.warn("[share] 封面绘制失败", e); }
+    }
+
+    var done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+
+      // 标题（换行 + 超行省略）+ 副标题：都在封面与二维码之间的独立区间
+      g.fillStyle = "#1a2a3a";
+      g.font = "500 " + L.title.size + "px " + FONT;
+      g.textAlign = isVideo ? "left" : "center";
+      var lines = fitLines(g, item.title || "", L.colW, L.title.max);
+      for (var i = 0; i < lines.length; i++) {
+        g.fillText(lines[i], titleX, L.title.y + i * L.title.lineH);
+      }
+      g.fillStyle = "#5b7f9e";
+      g.font = "400 " + L.subSize + "px " + FONT;
+      g.fillText([item.album, item.platform].filter(Boolean).join(" · "), titleX, L.subY);
+
+      // 二维码白底框
+      g.fillStyle = "#ffffff";
+      roundRect(g, L.qr.x, L.qr.y, L.qr.box, L.qr.box, 18);
+      g.fill();
+      loadQr(0);
+    }
+
+    function qrFail() {
+      g.fillStyle = "#b9cddd";
+      g.font = "400 17px " + FONT;
+      g.textAlign = "center";
+      g.fillText(t("share.scan"), L.qr.x + L.qr.box / 2, L.qr.y + L.qr.box / 2 + 6);
+    }
+
+    function loadQr(attempt) {
+      if (!item.qr) { qrFail(); tail(); return; }
+      var base = assetUrl(item.qr);
+      var q = new Image();
+      q.onload = function () {
+        if (q.naturalWidth > 0) {
+          try {
+            g.save();
+            g.imageSmoothingEnabled = false;     // 1 bit 二维码：关掉插值才清晰
+            g.drawImage(q, L.qr.x + (L.qr.box - L.qr.size) / 2,
+                           L.qr.y + (L.qr.box - L.qr.size) / 2, L.qr.size, L.qr.size);
+            g.restore();
+          } catch (e) { console.warn("[share] 二维码绘制失败", e); qrFail(); }
+        } else { console.warn("[share] 二维码尺寸为 0", base); qrFail(); }
+        tail();
+      };
+      q.onerror = function () {
+        console.warn("[share] 二维码加载失败（第 " + (attempt + 1) + " 次）", base);
+        if (attempt < 1) { loadQr(attempt + 1); return; }   // 重试一次，带时间戳绕开缓存
+        qrFail();
+        tail();
+      };
+      q.src = attempt ? base + (base.indexOf("?") < 0 ? "?" : "&") + "r=" + Date.now() : base;
+    }
+
+    function tail() {
+      g.fillStyle = "#5b7f9e";
+      g.font = "400 " + L.capSize + "px " + FONT;
+      g.textAlign = "center";
+      g.fillText(t("share.scan"), capX, L.capY);
+      var url = "";
+      try { url = cv.toDataURL("image/png"); }
+      catch (e) { console.warn("[share] 画布导出失败", e); toast(t("player.copyFail")); return; }
+      showShareModal(url, item);
+    }
+
+    // 封面：优先复用弹窗里已加载好的那张图；否则加载；再不行/超时就保留占位
+    var ready = loadedCoverImg();
+    if (ready) { drawCover(ready); finish(); }
+    else if (item.cover) {
+      var im = new Image();
+      var fired = false;
+      var once = function (ok) {
+        if (fired) return;
+        fired = true;
+        if (ok) drawCover(im);
+        finish();
+      };
+      im.onload = function () {
+        if (im.naturalWidth > 0) once(true);
+        else { console.warn("[share] 封面尺寸为 0", item.cover); once(false); }
+      };
+      im.onerror = function () { console.warn("[share] 封面加载失败", item.cover); once(false); };
+      im.src = assetUrl(item.cover);
+      setTimeout(function () { if (!fired) console.warn("[share] 封面超时", item.cover); once(false); }, 1500);
+    } else { finish(); }
   }
 
   /* 图片地址归一化：卡片里的路径有的是相对路径（assets/...），
@@ -1495,6 +1549,9 @@
   function showShareModal(dataUrl, item) {
     var box = document.getElementById("share-modal");
     if (!box) return;
+    // 横版卡（视频）用更宽的容器，保证二维码显示尺寸足够扫
+    var inner = box.querySelector(".sm-box");
+    if (inner) inner.classList.toggle("wide", !!(item && item.kind === "video"));
     var img = document.getElementById("share-img");
     if (img) img.src = dataUrl;
     var a = document.getElementById("share-dl");
@@ -1519,6 +1576,8 @@
     firstRoundDone: false,
     enabled: true,
     roundOne: false,
+    asked: null,        // 是否已问过「要不要 BGM」：yes / no / null
+    askTimer: null,
     fadeBase: 0.55,     // 淡入淡出的目标音量（渐弱前的音量）
     curUrl: ""          // 当前已加载的音源（判断"要不要重设 src"用）
   };
@@ -1573,7 +1632,20 @@
       var m = localStorage.getItem("sys-bgm-mode");
       if (m) bgm.mode = m;
     } catch (e) {}
-    try { bgm.enabled = localStorage.getItem("sys-bgm-off") !== "1"; } catch (e) {}
+    // BGM 是否自动播放：以「询问结果」为准（首次进来先问一次）
+    var asked = null;
+    try { asked = localStorage.getItem("sys-bgm-ask"); } catch (e) {}
+    bgm.asked = asked;
+    if (asked === "yes") {
+      bgm.enabled = true;
+    } else {
+      bgm.enabled = false;      // 明确拒绝 or 还没问过 → 先不播
+    }
+    if (asked === null && localStorage.getItem("sys-bgm-off") === "0") {
+      bgm.enabled = true;       // 兼容：老访客手动开过 BGM
+      asked = "yes";
+      bgm.asked = "yes";
+    }
 
     // ---------- 2) 立刻建 audio 并起播：不依赖任何 fetch ----------
     // 旧实现把整段初始化塞在 loadBgmMeta 回调里，且音源要等 176 KB 的
@@ -1591,7 +1663,8 @@
     }
     buildQueue();
     paintBgmBtn();
-    if (bgm.enabled) tryAutoStart();
+    if (bgm.enabled && bgm.asked) tryAutoStart();
+    else if (bgm.asked === null) showBgmAsk();   // 首次进入：顶部询问是否播放
 
     // ---------- 3) 后台补元数据（标题/封面）与播放器数据，回来刷新面板 ----------
     loadBgmMeta(function () {
@@ -1876,6 +1949,10 @@
       bgm.enabled = !bgm.enabled;
       try { localStorage.setItem("sys-bgm-off", bgm.enabled ? "0" : "1"); }
       catch (e) {}
+      // 手动开关过就视为已作答，别再弹询问
+      try { localStorage.setItem("sys-bgm-ask", bgm.enabled ? "yes" : "no"); } catch (e) {}
+      bgm.asked = bgm.enabled ? "yes" : "no";
+      hideBgmAsk();
       if (bgm.enabled) { bgmPlayAt(bgm.idx || 0); }
       else if (bgm.audio) bgm.audio.pause();
       paintBgmBtn();
@@ -1994,6 +2071,63 @@
   }
 
   // 供播放器弹窗里的“加入 BGM 播放单”调用
+  /* ---------------- 进入页面时询问是否播放 BGM ----------------
+     放在顶部、文案走当前页面的 i18n（站点语言由 IP/浏览器语言决定，页面已是该语言）。
+     点「好的」这一下本身就是用户手势 → 可以立刻有声播放，不必再等下一次点击。*/
+  function showBgmAsk() {
+    var box = document.getElementById("ask-bgm");
+    if (!box) return;
+    var tx = document.getElementById("ask-bgm-text");
+    if (tx) tx.textContent = t("bgm.ask");
+    var yes = document.getElementById("ask-bgm-yes");
+    if (yes) {
+      yes.textContent = t("bgm.askYes");
+      yes.onclick = function () { bgmAnswer(true); };
+    }
+    var no = document.getElementById("ask-bgm-no");
+    if (no) {
+      no.textContent = t("bgm.askNo");
+      no.onclick = function () { bgmAnswer(false); };
+    }
+    box.classList.add("open");
+    // 15 秒不理会自动收起（不打扰浏览），下次进页面会再问
+    clearTimeout(bgm.askTimer);
+    bgm.askTimer = setTimeout(function () {
+      if (bgm.asked === null) hideBgmAsk();
+    }, 15000);
+  }
+
+  function hideBgmAsk() {
+    var box = document.getElementById("ask-bgm");
+    if (box) box.classList.remove("open");
+    clearTimeout(bgm.askTimer);
+  }
+
+  function bgmAnswer(ok) {
+    bgm.asked = ok ? "yes" : "no";
+    try { localStorage.setItem("sys-bgm-ask", bgm.asked); } catch (e) {}
+    try { localStorage.setItem("sys-bgm-off", ok ? "0" : "1"); } catch (e) {}
+    hideBgmAsk();
+    if (ok) {
+      bgm.enabled = true;
+      bgm.needsUnmute = false;
+      if (bgm.audio) {
+        bgm.audio.muted = false;
+        bgmPlayAt(bgm.idx || 0);
+        var pr = bgm.audio.play();
+        if (pr && pr.catch) pr.catch(function () {});
+      } else {
+        initBgm();
+      }
+      toast(t("bgm.playing"));
+    } else {
+      bgm.enabled = false;
+      if (bgm.audio) { try { bgm.audio.pause(); } catch (e) {} }
+    }
+    paintBgmBtn();
+    paintBgmBar();
+  }
+
   function bgmAdd(song, btn, info) {
     if (!song) return;
     loadBgmMeta(function () {
