@@ -21,6 +21,7 @@
 import argparse
 import calendar
 import html
+import glob
 import hashlib
 import json
 import os
@@ -1145,8 +1146,8 @@ SHELL = """<!DOCTYPE html>
   </div>
 </div>
 
-<!-- 下方一级弹窗：歌词细长条。与上方播放器弹窗同级、同时出现，一上一下排列。
-     白底、深蓝字，只显示当前行及其上下各 2 行（共 5 行），右侧仅一个上下拉环。 -->
+<!-- 右侧一级浮层：歌词窄高面板。与左下角的歌曲面板同级、同时出现，左右并排。
+     白底、深蓝字，可见行数由 --lyr-rows 决定（默认 9 行，当前行居中），右侧一个上下拉环。 -->
 <div class="lyr-mask" id="lyr-mask" aria-hidden="true">
   <div class="lyr-box" id="lyr-box">
     <div class="lyr-clip" id="lyr-clip">
@@ -1244,7 +1245,7 @@ var done=false;
 function byGeo(c){if(done)return;done=true;for(var k in REGIONS){if((REGIONS[k]||[]).indexOf(c)>=0){go(k);return;}}go("en");}
 try{
   var x=new XMLHttpRequest();
-  x.open("GET",GEOIP,true);x.timeout=1500;
+  x.open("GET",GEOIP,true);x.timeout=900;
   x.onload=function(){try{byGeo((JSON.parse(x.responseText).country||"").toUpperCase());}catch(e){byGeo("");}};
   x.onerror=x.ontimeout=function(){byGeo("");};
   x.send();
@@ -1292,11 +1293,19 @@ def main():
         if os.path.isdir(s):
             shutil.copytree(s, os.path.join(DIST, "assets", sub), dirs_exist_ok=True)
 
+    # 字体声明（Content / Lyrics / Ext 三层，由 build_font.py 生成）内联进 main.css：
+    # 单独开一个 <link> 就多一次请求，内联进同一份 CSS 更省。
+    css_path = os.path.join(DIST, "assets", "css", "main.css")
+    css = open(css_path, "r", encoding="utf-8").read()
+    fonts_css_path = os.path.join(SRC, "styles", "fonts.css")
+    if os.path.exists(fonts_css_path):
+        css = open(fonts_css_path, "r", encoding="utf-8").read() + "\n" + css
+    else:
+        print("  ! 找不到 src/styles/fonts.css（先跑一次 build_font.py）")
+
     # 字体缓存破版：文件名不变，浏览器（尤其是手机）会一直用旧字体，
     # 导致哪怕字体里已经补上假名，用户看到的还是旧版。用文件哈希做查询串。
     try:
-        css_path = os.path.join(DIST, "assets", "css", "main.css")
-        css = open(css_path, "r", encoding="utf-8").read()
         fonts_dir = os.path.join(SRC, "assets", "fonts")
         if os.path.isdir(fonts_dir):
             for font in sorted(os.listdir(fonts_dir)):
@@ -1349,23 +1358,48 @@ def main():
     except Exception as exc:  # noqa: BLE001
         print("  ! BGM 曲目表生成失败：%s" % exc)
 
-        # CSS / JS 也加缓存破版（同字体，防止浏览器用旧版导致新功能全部失效）
+    # CSS / JS 也加缓存破版（同字体，防止浏览器用旧版导致新功能全部失效）。
+    # 注意：这一段原先被误缩进到了上面 BGM 的 except 分支里，只有「BGM 曲目表
+    # 生成失败」时才会执行 —— 结果是 main.css / app.js 单独改动时，手机可能一直
+    # 吃旧版（看起来像「改了没生效」）。这里挪回正常流程，并按各自文件算哈希。
+    try:
         for asset_sub, ext in (("css", "css"), ("js", "js")):
             ap = os.path.join(DIST, "assets", asset_sub)
             if not os.path.isdir(ap):
                 continue
-            for f in os.listdir(ap):
+            for f in sorted(os.listdir(ap)):
                 if not f.endswith("." + ext):
                     continue
                 fp = os.path.join(ap, f)
                 h = hashlib.sha256(open(fp, "rb").read()).hexdigest()[:10]
-                # 只替换 HTML 里的引用
+                # 只替换 HTML 里的引用；已有 ?v=xxx 的一并规范化，避免出现两个查询串
+                pat = re.compile(r"assets/%s/%s(\?v=[0-9a-fA-F]+)?" % (asset_sub, re.escape(f)))
                 for page in glob.glob(os.path.join(DIST, "**", "*.html"), recursive=True):
                     pt = open(page, "r", encoding="utf-8").read()
-                    nt = pt.replace("assets/%s/%s" % (asset_sub, f),
-                                    "assets/%s/%s?v=%s" % (asset_sub, f, h))
+                    nt = pat.sub("assets/%s/%s?v=%s" % (asset_sub, f, h), pt)
                     if nt != pt:
                         open(page, "w", encoding="utf-8").write(nt)
+        print("  CSS / JS 缓存破版已应用")
+    except Exception as exc:  # noqa: BLE001
+        print("  ! CSS / JS 缓存破版跳过：%s" % exc)
+
+    # 首屏那几张图加 fetchpriority=high：和字体抢带宽时先走；
+    # 其余图片仍是 loading=lazy，不会被提前拉。
+    try:
+        for page in glob.glob(os.path.join(DIST, "**", "*.html"), recursive=True):
+            pt = open(page, "r", encoding="utf-8").read()
+            parts = pt.split("<img ")
+            if len(parts) <= 1:
+                continue
+            for k in range(1, min(7, len(parts))):
+                if "fetchpriority" not in parts[k]:
+                    parts[k] = 'fetchpriority="high" ' + parts[k]
+            nt = "<img ".join(parts)
+            if nt != pt:
+                open(page, "w", encoding="utf-8").write(nt)
+        print("  首屏图片已标 fetchpriority=high")
+    except Exception as exc:  # noqa: BLE001
+        print("  ! 首屏图片优先级跳过：%s" % exc)
 
     shutil.copy(SNAPSHOT, os.path.join(DIST, "snapshot.json"))
     with open(os.path.join(DIST, "robots.txt"), "w", encoding="utf-8") as f:

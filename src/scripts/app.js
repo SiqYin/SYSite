@@ -110,15 +110,20 @@
      取不到直链、或播放中途报错 → 自动回落官方播放器，并在底部说明。 */
   var PLAYER_CFG = window.SYS_PLAYER || {};
   var LYR_LINE_H = 48;        // 歌词条每行高度（初值，随后从 CSS 变量 --lyr-line 同步）
-  /* 小屏时 CSS 会把 --lyr-line 调小，这里必须同步，否则轮转位移会错位 */
+  var LYR_MID = 2;            // 当前行停在第几行（= (可见行数-1)/2，从 --lyr-mid 同步）
+  /* 小屏/矮屏时 CSS 会同时调 --lyr-line 与 --lyr-rows，这里必须一起同步，
+     否则轮转位移会错位（歌词面板现在是竖长条，可见行数不再是写死的 5 行）。 */
   function syncLyrLineH() {
     try {
-      var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--lyr-line"));
+      var cs = getComputedStyle(document.documentElement);
+      var v = parseFloat(cs.getPropertyValue("--lyr-line"));
       if (v > 10) LYR_LINE_H = v;
+      var m = parseFloat(cs.getPropertyValue("--lyr-mid"));
+      if (m >= 0) LYR_MID = m;
     } catch (e) {}
     if (el && el.lyrics && lrcEls.length) {
       var cur = lastLrcIdx < 0 ? 0 : lastLrcIdx;
-      el.lyrics.style.transform = "translateY(" + (LYR_LINE_H * 2 - cur * LYR_LINE_H) + "px)";
+      el.lyrics.style.transform = "translateY(" + (LYR_MID * LYR_LINE_H - cur * LYR_LINE_H) + "px)";
     }
   }
   var lyrMask = document.getElementById("lyr-mask");
@@ -596,7 +601,7 @@
         return '<div class="lyr-line" data-i="' + i + '"><span class="lyr-txt">' + esc(ln.s) + "</span>" +
                (ln.tr ? '<span class="lyr-tr">' + esc(ln.tr) + "</span>" : "") + "</div>";
       }).join("");
-      el.lyrics.style.transform = "translateY(" + (LYR_LINE_H * 2) + "px)";
+      el.lyrics.style.transform = "translateY(" + (LYR_MID * LYR_LINE_H) + "px)";
       var nodes = el.lyrics.querySelectorAll(".lyr-line");
       for (var i = 0; i < nodes.length; i++) {
         lrcEls.push(nodes[i]);
@@ -729,7 +734,7 @@
     lastLrcIdx = idx;
     // 轮转：当前行始终落在第 3 行（上面 2 行、下面 2 行可见）
     var cur = idx < 0 ? 0 : idx;
-    el.lyrics.style.transform = "translateY(" + (LYR_LINE_H * 2 - cur * LYR_LINE_H) + "px)";
+    el.lyrics.style.transform = "translateY(" + (LYR_MID * LYR_LINE_H - cur * LYR_LINE_H) + "px)";
     if (idx >= 0 && lrcEls[idx]) lrcEls[idx].classList.add("on");
   }
 
@@ -1669,6 +1674,26 @@
     // ---------- 3) 后台补元数据（标题/封面）与播放器数据，回来刷新面板 ----------
     loadBgmMeta(function () {
       for (var j = 0; j < bgm.list.length; j++) bgm.list[j] = bgmEntry(bgm.list[j].song);
+      // 关键：bgm.queue 是「建队列那一刻」按引用拷进来的旧对象，上面那行只重建了
+      // bgm.list；队列仍指向标题为空字符串的旧副本 —— 面板左下角「当前曲目」读的
+      // 正是队列，于是一直显示兜底文案「未知曲目」。这里就地刷新队列里的字段。
+      for (var q = 0; q < bgm.queue.length; q++) {
+        var fresh = bgmEntry(bgm.queue[q].song);
+        bgm.queue[q].t = fresh.t;
+        bgm.queue[q].c = fresh.c;
+        bgm.queue[q].a = fresh.a;
+      }
+      // 播放单里若存着查不到标题的条目（旧版 localStorage 缓存、已下架的曲目），
+      // 直接剔掉并写回，不再以「未知曲目」的样子留在面板里。
+      // 只有在元数据确实取到时才清理，否则网络失败会把整张播放单清空。
+      if (Object.keys(bgm.meta).length) {
+        var before = bgm.list.length;
+        bgm.list = bgm.list.filter(function (m) { return !!m.t; });
+        if (bgm.list.length !== before) {
+          saveBgmList();
+          buildQueue();
+        }
+      }
       var pt = document.getElementById("bgp-title");
       if (pt) pt.textContent = t("bgm.title");
       var ph = document.getElementById("bgp-hint");
@@ -1692,14 +1717,24 @@
       paintBgmActive();
       paintBgmBar();
     });
-    loadAudioData();   // 预热：歌词 + 签名直链兜底（失败也不影响 BGM 播放）
+    // 这里不再预热 assets/player-data.json：它有 180 KB（gzip 91 KB），
+    // 以前每个页面一进来就白下一份；而 BGM 的首选音源是 stableUrl
+    // （对外播放入口，不依赖它），所以改成真点开播放器 / 真开始放 BGM 时才按需取。
   }
 
   /* 播放队列逻辑：
      - 首次进入（用户没拖拽过）→ 前 initialCount 首乱序播一轮 → 之后进入吴语歌单部分按顺序循环
      - 用户拖拽后 → 按新顺序，配合当前模式（顺序/逆序/乱序/单曲循环）播放 */
   function bgmCurrent() {
-    return bgm.queue[bgm.idx] || bgm.list[0] || null;
+    var cur = bgm.queue[bgm.idx];
+    if (cur) {
+      // 队列里可能是元数据回来之前的旧副本，按 song 回查一次最新的
+      for (var i = 0; i < bgm.list.length; i++) {
+        if (bgm.list[i].song === cur.song) return bgm.list[i];
+      }
+      return cur;
+    }
+    return bgm.list[0] || null;
   }
 
   /* 兼容旧引用 */
@@ -1811,6 +1846,7 @@
   }
 
   function bgmPlayAt(i) {
+    if (!audioReady) loadAudioData();   // 真放 BGM 时才补签名直链兜底（不阻塞当前这首）
     var cur = bgm.queue[i];
     if (!cur) return;
     bgm.idx = i;
@@ -1969,7 +2005,7 @@
     }
     ul.innerHTML = bgm.list.map(function (m, i) {
       return '<li data-i="' + i + '">' +
-        '<span class="bgm-handle" data-drag>⠿</span>' +
+        '<span class="bgm-handle" data-drag>⋮⋮</span>' +
         '<span class="bgm-name">' + esc(m.t || t("bgm.unknown")) + (m.a ? '<em>' + esc(m.a) + "</em>" : "") + "</span>" +
         '<button class="bgm-del" data-del="1" type="button" aria-label="remove">×</button>' +
         "</li>";
@@ -2052,7 +2088,7 @@
       md.textContent = t("bgm." + bgm.mode);
       md.title = t("bgm.mode") + "：" + t("bgm." + bgm.mode);
     }
-    if (tg) tg.innerHTML = a && !a.paused ? "❚❚" : "▶";
+    if (tg) tg.innerHTML = a && !a.paused ? icon("pause") : icon("play");
     if (!a || !fill) return;
     var d = a.duration || 0;
     var r = d ? (a.currentTime / d) * 100 : 0;

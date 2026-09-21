@@ -51,7 +51,8 @@
     "_note": [
       "自有播放器。ownAudio=true 时音频用原生 audio + 自有界面（海报 + 动态歌词）：",
       "音频直链与歌词在构建期取好、放在 assets/player-data.json，只在点击播放时才加载；",
-      "歌词用字单独切了一份字体，同样只在播放器打开时才下载。",
+      "字体按「用字场景」切三层：首屏用字 / 歌词与检索用字 / 其余全部汉字（按需分片），",
+      "歌词不再单独指定字体族，也不会再出现一部分汉字没套上霞鹜文楷的情况。",
       "取不到直链或播放报错会自动回落官方播放器。",
       "视频不做处理：官方播放器是跨域 iframe，既不能读它的 DOM、也不支持 postMessage，",
       "没有隐藏品牌的参数，遮罩只能遮出个半成品，所以直接保持官方嵌入原样。"
@@ -81,7 +82,14 @@
     "maxCovers": 120
   },
   "fonts": {
-    "archive": "D:\\Wu\\Chrome\\lxgw-wenkai-v1.522.zip",
+    "_note": [
+      "字体包路径。相对路径按仓库根目录解析；CI 里由 workflow 下载到 .cache/fonts/ 并做缓存。",
+      "本机也可以直接写自己的 zip 绝对路径，或用环境变量 LXGW_FONT_ARCHIVE 覆盖。",
+      "拿不到字体包时 build_font.py 会跳过，仓库里已提交的字体与 fonts.css 保持不变。",
+      "为什么必须是这个完整字体：全量汉字（基本区 20992 + 扩展A 6592）才不会再出现「一半套了霞鹜文楷、一半没套」。"
+    ],
+    "archive": ".cache/fonts/lxgw-wenkai-v1.522.zip",
+    "releaseUrl": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522/lxgw-wenkai-v1.522.zip",
     "preferred": "lxgw-wenkai-v1.522/LXGWWenKai-Regular.ttf",
     "fallback": "lxgw-wenkai-v1.522/LXGWWenKai-Light.ttf",
     "outputName": "lxgw-wenkai-content"

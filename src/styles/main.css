@@ -4,23 +4,8 @@
    气质：柔和圆角、气泡、轻盈过渡（Google 式）
    ========================================================================== */
 
-@font-face {
-  font-family: "LXGW WenKai Content";
-  src: url("../fonts/lxgw-wenkai-content.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* 歌词用字里古今字、方言字、生僻字特别多，单独切一份，
-   只在播放器打开时才需要下载，不拖累首屏。 */
-@font-face {
-  font-family: "LXGW WenKai Lyrics";
-  src: url("../fonts/lxgw-wenkai-content-lyrics.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+/* 字体声明（Content / Lyrics / Ext 三层）由 scripts/build_font.py 生成到
+   src/styles/fonts.css，构建时内联进本文件。这里不再手写 @font-face。 */
 
 :root {
   /* 蓝色阶 */
@@ -67,9 +52,11 @@
   --t-mid: .32s var(--ease);
   --t-slow: .5s var(--ease);
 
-  --font: "LXGW WenKai Content", "LXGW WenKai", "Noto Sans SC",
-          system-ui, -apple-system, "Segoe UI", "PingFang SC",
-          "Microsoft YaHei", sans-serif;
+  /* 逐字回退：Content（首屏用字）→ Lyrics（歌词/检索用字）→ Ext（其余全部汉字）
+     三层都带霞鹜文楷字形，浏览器只下载「真的渲染到了」的那一层。 */
+  --font: "LXGW WenKai Content", "LXGW WenKai Lyrics", "LXGW WenKai Ext",
+          "Noto Sans SC", system-ui, -apple-system, "Segoe UI",
+          "PingFang SC", "Microsoft YaHei", sans-serif;
   --maxw: 1180px;
 }
 
@@ -863,9 +850,9 @@ main { position: relative; z-index: 1; }
   cursor: pointer;
   transition: opacity .28s var(--ease), transform .28s var(--ease);
 }
-.op-lyrics, .op-line, .op-txt, .op-tr {
-  font-family: "LXGW WenKai Lyrics", "LXGW WenKai Content", var(--font);
-}
+/* 歌词不再单独指定字体族：--font 的第二层就是「歌词用字」那一份，
+   歌词里第一层没有的字会自动落到它上面 —— 这就是「一部分汉字套了霞鹜文楷、
+   一部分没套」的修法。 */
 .op-line:hover { opacity: .75; }
 .op-line.on { opacity: 1; transform: translateX(5px); }
 .op-line.on .op-txt { font-size: 15.5px; font-weight: 500; }
@@ -951,36 +938,77 @@ main { position: relative; z-index: 1; }
   .op-q { flex-wrap: wrap; }
 }
 
-/* ====================== 音频：两个一级弹窗 ======================
-   上方 = 播放器弹窗（从底部大弹窗上移，占约 70% 屏高，偏上侧）
-   下方 = 歌词细长条（白底深蓝字，5 行轮转，右侧单拉环）
-   两者是同级的第一级弹窗，同时出现，一上一下排列。 */
-:root { --lyr-line: 48px; --lyr-row: #9fb3c6; --lyr-cur: #123a5c; }
+/* ====================== 音频：左右两个一级浮层 ======================
+   左：歌曲面板 —— 竖长窄版，贴在界面左下方（封面在上、信息与控制在下）；
+   右：歌词面板 —— 窄而高的白底面板，贴着界面右侧，行数由面板高度决定。
+   两者同时出现，左低右高，不再一上一下。 */
+:root {
+  --lyr-line: 46px;          /* 每行歌词高度 */
+  --lyr-rows: 9;             /* 歌词面板一次可见的行数（奇数，当前行居中） */
+  --lyr-mid: 4;              /* (rows-1)/2：JS 轮转位移要用，必须与 --lyr-rows 同步 */
+  --lyr-row: #9fb3c6;
+  --lyr-cur: #123a5c;
+}
 
-.modal-mask.audio-mode { align-items: flex-start; padding: 5vh 22px 0; }
+/* 歌曲面板：从左下角浮起，竖长横短 */
+.modal-mask.audio-mode {
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 0 0 18px 18px;
+}
 .modal-mask.audio-mode .modal {
-  height: 70vh;
-  max-height: 70vh;
+  width: min(340px, 46vw);
+  max-width: none;
+  height: min(72vh, 640px);
+  max-height: min(72vh, 640px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-radius: var(--r-lg);
 }
+.modal-mask.audio-mode .modal-head { flex: none; padding: 16px 16px 10px; gap: 10px; }
+.modal-mask.audio-mode .modal-head h3 { font-size: 15px; line-height: 1.5; }
+.modal-mask.audio-mode .modal-head .mmeta { margin-top: 3px; }
 .modal-mask.audio-mode .modal-stage {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding-bottom: 16px;
+  padding: 0 16px 12px;
 }
-.modal-mask.audio-mode .modal-foot { flex: none; }
+.modal-mask.audio-mode .modal-foot { flex: none; padding: 10px 16px 14px; }
 
+/* 竖长面板内部：封面 → 歌名/专辑 → 进度 → 控制，全部改竖排 */
+.modal-mask.audio-mode .op-player {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  padding: 16px 16px 14px;
+}
+.modal-mask.audio-mode .op-art {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+.modal-mask.audio-mode .op-pinfo { gap: 10px; }
+.modal-mask.audio-mode .op-title { font-size: 15.5px; }
+.modal-mask.audio-mode .op-btns { gap: 8px; }
+.modal-mask.audio-mode .op-btns .op-seek.op-vol { width: 100%; }
+.modal-mask.audio-mode .op-extras { gap: 8px; }
+.modal-mask.audio-mode .op-extras .op-q { margin-left: 0; }
+
+/* 歌词面板：贴界面右侧的窄高浮层，不再压在上方弹窗下面 */
 .lyr-mask {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  width: min(430px, 48vw);
   z-index: 210;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: calc(5vh + 70vh + 14px) 22px 0;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 72px 18px 18px 0;
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
@@ -991,10 +1019,10 @@ main { position: relative; z-index: 1; }
   pointer-events: auto;
   position: relative;
   width: 100%;
-  max-width: 880px;
+  max-width: none;
   display: flex;
   align-items: stretch;
-  padding: 10px 6px 10px 20px;
+  padding: 14px 6px 14px 20px;
   background: #ffffff;
   border-radius: var(--r-xl);
   box-shadow: 0 14px 40px rgba(15, 47, 71, .22);
@@ -1006,7 +1034,7 @@ main { position: relative; z-index: 1; }
   position: relative;
   flex: 1;
   min-width: 0;
-  height: calc(5 * var(--lyr-line));
+  height: calc(var(--lyr-rows) * var(--lyr-line));
   overflow: hidden;
 }
 .lyr-track {
@@ -1088,23 +1116,27 @@ main { position: relative; z-index: 1; }
 .op-extras .op-q { margin-left: auto; }
 
 @media (max-width: 760px) {
-  /* 小屏：播放器压到 58vh，行高缩到 40px，保证下方歌词条完整可见 */
-  .modal-mask.audio-mode { padding: 4vh 12px 0; }
-  .modal-mask.audio-mode .modal { height: 58vh; max-height: 58vh; }
-  .lyr-mask { padding: calc(4vh + 58vh + 10px) 12px 0; }
-  :root { --lyr-line: 40px; }
-  .lyr-box { padding: 8px 4px 8px 12px; }
+  /* 小屏：两块都收窄，歌词面板仍留在右侧；可见行数不变，行高略降 */
+  :root { --lyr-line: 40px; --lyr-rows: 9; --lyr-mid: 4; }
+  .modal-mask.audio-mode { padding: 0 0 12px 12px; }
+  .modal-mask.audio-mode .modal {
+    width: min(300px, 47vw);
+    height: min(66vh, 520px);
+    max-height: min(66vh, 520px);
+  }
+  .lyr-mask { width: min(360px, 47vw); padding: 62px 12px 12px 0; }
+  .lyr-box { padding: 10px 4px 10px 14px; }
   .lyr-line { font-size: 15px; }
   .lyr-line.on { font-size: 20px; }
   .lyr-box.no-tr .lyr-line { font-size: 16px; }
   .lyr-box.no-tr .lyr-line.on { font-size: 21px; }
 }
-/* 横屏手机等「矮屏」：进一步压缩，避免歌词条被挤出可视区 */
+/* 横屏手机等「矮屏」：减少可见行数，避免面板被挤出可视区 */
 @media (max-height: 560px) {
-  .modal-mask.audio-mode { padding: 2vh 12px 0; }
-  .modal-mask.audio-mode .modal { height: 52vh; max-height: 52vh; }
-  .lyr-mask { padding: calc(2vh + 52vh + 8px) 12px 0; }
-  :root { --lyr-line: 34px; }
+  :root { --lyr-line: 34px; --lyr-rows: 7; --lyr-mid: 3; }
+  .modal-mask.audio-mode { padding: 0 0 10px 10px; }
+  .modal-mask.audio-mode .modal { height: min(78vh, 460px); max-height: min(78vh, 460px); }
+  .lyr-mask { padding: 56px 10px 10px 0; }
   .lyr-line { font-size: 14px; }
   .lyr-line.on { font-size: 18px; }
 }
