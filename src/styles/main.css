@@ -944,8 +944,8 @@ main { position: relative; z-index: 1; }
    两者同时出现，左低右高，不再一上一下。 */
 :root {
   --lyr-line: 46px;          /* 每行歌词高度 */
-  --lyr-rows: 9;             /* 歌词面板一次可见的行数（奇数，当前行居中） */
-  --lyr-mid: 4;              /* (rows-1)/2：JS 轮转位移要用，必须与 --lyr-rows 同步 */
+  --lyr-rows: 9;             /* no-JS 兜底；实际可见行数由 JS 按面板实测高度决定 */
+  --lyr-mid: 4;              /* no-JS 兜底；JS 会按实测行数覆盖，保证当前行落在正中 */
   --lyr-row: #9fb3c6;
   --lyr-cur: #123a5c;
 }
@@ -1034,7 +1034,8 @@ main { position: relative; z-index: 1; }
   position: relative;
   flex: 1;
   min-width: 0;
-  height: calc(var(--lyr-rows) * var(--lyr-line));
+  /* 高度交给 .lyr-box 的 align-items: stretch 撑满（不再按 --lyr-rows 写死）。
+     写死高度会让歌词块只占面板上半截、下方空一大片。 */
   overflow: hidden;
 }
 .lyr-track {

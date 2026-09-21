@@ -120,6 +120,15 @@
       if (v > 10) LYR_LINE_H = v;
       var m = parseFloat(cs.getPropertyValue("--lyr-mid"));
       if (m >= 0) LYR_MID = m;
+      /* 再用面板实测高度覆盖：歌词面板是竖长条，高度随视口变化，
+         写死行数会让当前行偏离正中、下方留一大片空白。 */
+      var clip = document.getElementById("lyr-clip");
+      if (clip && LYR_LINE_H > 10) {
+        var hh = clip.clientHeight;
+        if (hh > LYR_LINE_H * 1.5) {
+          LYR_MID = Math.max(0, Math.round((hh / LYR_LINE_H - 1) / 2));
+        }
+      }
     } catch (e) {}
     if (el && el.lyrics && lrcEls.length) {
       var cur = lastLrcIdx < 0 ? 0 : lastLrcIdx;
