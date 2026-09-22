@@ -927,6 +927,7 @@
         return im ? im.getAttribute("src") : "";
       })(),
       qr: el.getAttribute("data-qr") || "",
+      qrm: el.getAttribute("data-qrm") || "",   // 构建期嵌好的二维码点阵（base64）
       copy: el.getAttribute("data-copy") === "1"
     };
   }
@@ -1500,8 +1501,15 @@
       g.fillStyle = "#ffffff";
       roundRect(g, L.qr.x, L.qr.y, L.qr.box, L.qr.box, 18);
       g.fill();
-      // 先把卡发出去（二维码位暂时留白）并在码位显示转圈，二维码到位后再补画一次。
-      // 这样即使二维码慢，分享弹窗也是立刻出来的，不会干等。
+      // 二维码优先用构建期嵌在 data-qrm 里的点阵直接画：没有网络请求、没有缓存、
+      // 没有图片解码，一次成卡 —— 从根上消掉「二维码加载不出来」这个失败面。
+      if (item.qrm && drawQrMatrix(item.qrm)) {
+        caption();
+        publish();
+        return;
+      }
+      // 兜底（老页面没有 data-qrm）：走图片，先把卡发出去并在码位显示转圈，
+      // 二维码到位后再补画一次，不让整个弹窗干等。
       caption();
       setQrLoading(true);
       publish();
@@ -1518,6 +1526,38 @@
         if (nat / d <= limit) return nat / d;
       }
       return L.qr.size;
+    }
+
+    /* 直接用构建期嵌好的点阵画二维码：不请求图片、不看缓存、不受网络影响。
+       base64 首字节是边长，其后是按位打包的 0/1。每格取整数像素，天然清晰。 */
+    function drawQrMatrix(b64) {
+      var bin = "";
+      try { bin = atob(b64); } catch (e) { return false; }
+      if (bin.length < 2) return false;
+      var side = bin.charCodeAt(0);
+      var need = side * side;
+      var bits = [];
+      for (var i = 1; i < bin.length && bits.length < need; i++) {
+        var v = bin.charCodeAt(i);
+        for (var k = 7; k >= 0 && bits.length < need; k--) bits.push((v >> k) & 1);
+      }
+      if (bits.length < need) return false;
+      var module = Math.floor((L.qr.box - 12) / (side + 8));   // 四周各留 4 格白边
+      if (module < 2) module = 2;
+      var total = (side + 8) * module;
+      var x0 = L.qr.x + (L.qr.box - total) / 2;
+      var y0 = L.qr.y + (L.qr.box - total) / 2;
+      g.fillStyle = "#ffffff";
+      g.fillRect(x0, y0, total, total);
+      g.fillStyle = "#000000";
+      for (var r = 0; r < side; r++) {
+        for (var c = 0; c < side; c++) {
+          if (bits[r * side + c]) {
+            g.fillRect(x0 + (c + 4) * module, y0 + (r + 4) * module, module, module);
+          }
+        }
+      }
+      return true;
     }
 
     function setQrLoading(on) {
@@ -1732,11 +1772,8 @@
     } else {
       bgm.enabled = false;      // 明确拒绝 or 还没问过 → 先不播
     }
-    if (asked === null && localStorage.getItem("sys-bgm-off") === "0") {
-      bgm.enabled = true;       // 兼容：老访客手动开过 BGM
-      asked = "yes";
-      bgm.asked = "yes";
-    }
+    // 这里**不能**再看 sys-bgm-off 来「兼容老访客」：手动开关过 BGM 也会把它写成 "0"，
+    // 于是气泡又被静默吃掉（之前两轮都没弹出来就是它）。是否已作答只看 sys-bgm-asked。
 
     // ---------- 2) 立刻建 audio 并起播：不依赖任何 fetch ----------
     // 旧实现把整段初始化塞在 loadBgmMeta 回调里，且音源要等 176 KB 的
@@ -1873,11 +1910,19 @@
   function bgmToggle() {
     var a = bgm.audio;
     if (!a) return;
+    /* 手动开关必须「立即」生效。暂停原本走渐弱（bgmFadeTo 用 setInterval 一点点把音量
+       降到 0，最后才真正 pause），这几百毫秒里 a.paused 仍然是 false ——
+       于是再点一下会被判成「继续播」，图标也不翻，表现就是「点好几次才有反应」。
+       这里改成直接 pause/play：状态与图标同步翻转；渐弱只留给自动让位（开弹窗时）。 */
     if (a.paused) {
       if (!bgm.curUrl) bgmPlayAt(bgm.idx || 0);
-      else bgmResumeFade();          // 手动继续也从原位置渐强
+      else bgmResumeFade();          // 手动继续：从原位置渐强
     } else {
-      bgmPauseFade();                // 手动暂停也渐弱
+      try {
+        if (bgm.fadeTimer) { clearInterval(bgm.fadeTimer); bgm.fadeTimer = null; }
+        a.pause();
+        a.volume = Number(bgm.fadeBase) || Number(a.volume) || 0.55;   // 还原音量，续播才有声
+      } catch (e) {}
     }
     paintBgmBar();
   }

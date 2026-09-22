@@ -1756,8 +1756,10 @@ footer {
 }
 .share-modal.open { opacity: 1; pointer-events: auto; }
 /* 分享卡容器：给「二维码加载中」的转圈做定位基准 */
-.sm-shot { position: relative; line-height: 0; }
-.sm-shot img { width: 100%; height: auto; display: block; border-radius: var(--r-md); }
+.sm-shot { position: relative; display: inline-block; max-width: 100%; line-height: 0; }
+/* 卡片要整体可见：二维码在卡片下半部，若图片拉满宽度、弹窗又得滚动，
+   小屏上二维码会落到可视区外，看起来就像「没加载出来」。按视口高度收一下。 */
+.sm-shot img { width: auto; max-width: 100%; max-height: 56vh; margin: 0 auto; display: block; border-radius: var(--r-md); }
 .sm-load {
   position: absolute;
   display: none;

@@ -19,6 +19,7 @@
 """
 
 import argparse
+import base64
 import calendar
 import html
 import glob
@@ -41,6 +42,42 @@ try:
     import qrcode
 except ImportError:
     qrcode = None
+
+
+def qr_matrix_b64(url):
+    """把二维码点阵压成 base64（首字节是边长，其后每行 0/1 按位打包）。
+
+    前端拿到后直接按模块画方块 —— 不请求图片、不看 HTTP 缓存、不受网络影响，
+    也就不可能再出现「分享卡二维码加载不出来」。
+    同一份链接与 write_qr 用同样的 version/纠错级，点阵一致。
+    """
+    if not url:
+        return ""
+    m = None
+    if segno is not None:
+        try:
+            m = [list(r) for r in segno.make(url, error="m", version=4).matrix]
+        except Exception:  # noqa: BLE001
+            m = [list(r) for r in segno.make(url, error="m").matrix]
+    elif qrcode is not None:
+        q = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M,
+                          version=4, border=0)
+        q.add_data(url)
+        q.make(fit=True)
+        m = q.get_matrix()
+    if not m:
+        return ""
+    side = len(m)
+    bits = [1 if v else 0 for row in m for v in row]
+    while len(bits) % 8:
+        bits.append(0)
+    out = bytearray([side])
+    for i in range(0, len(bits), 8):
+        b = 0
+        for k in range(8):
+            b = (b << 1) | bits[i + k]
+        out.append(b)
+    return base64.b64encode(bytes(out)).decode("ascii")
 
 
 def write_qr(url, path):
@@ -277,9 +314,10 @@ class Builder:
                                (it.get("embed") or {}).get("cid"))
             f_attrs = ' data-f-year="%s" data-f-coll="%s"' % (esc(year), esc("|".join(it.get("collections") or [])))
         qr = "assets/qr/" + self.qr_name(it)
+        qrm = qr_matrix_b64(it.get("url") or "")
         return (
             '<article class="%s" data-delay="%d" data-play="1" data-kind="%s" tabindex="0" role="button" '
-            'data-ts="%d" data-heat="%d" data-qr="%s"%s '
+            'data-ts="%d" data-heat="%d" data-qr="%s" data-qrm="%s"%s '
             'data-title="%s" data-meta="%s" data-embed="%s" data-source="%s" '
             'data-source-label="%s" data-platform="%s">'
             '<div class="card-cover%s">%s%s%s'
@@ -287,7 +325,7 @@ class Builder:
             '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></span></div>'
             '<div class="card-body"><h3 class="card-title">%s</h3>%s'
             '<div class="card-meta"><span>%s</span></div></div></article>'
-        ) % (cls, delay, kind, to_epoch(it.get("publishedAt")), int(heat or 0), esc(qr), f_attrs,
+        ) % (cls, delay, kind, to_epoch(it.get("publishedAt")), int(heat or 0), esc(qr), esc(qrm), f_attrs,
              esc(it["title"]), esc(meta), esc(embed), esc(it["url"]),
              esc(self.t("player.openSourceAudio" if kind == "audio" else "player.openSource")),
              PLATFORM_LABEL.get(it["platform"], ""),
@@ -324,13 +362,14 @@ class Builder:
                  else bili_embed((it.get("embed") or {}).get("bvid") or it["nativeId"],
                                  (it.get("embed") or {}).get("cid")))
         qr = "assets/qr/" + self.qr_name(it)
+        qrm = qr_matrix_b64(it.get("url") or "")
         return (
-            '<button class="mini" type="button" data-play="1" data-kind="%s" data-qr="%s"%s '
+            '<button class="mini" type="button" data-play="1" data-kind="%s" data-qr="%s" data-qrm="%s"%s '
             'data-title="%s" data-meta="%s" data-embed="%s" data-source="%s" '
             'data-source-label="%s" data-platform="%s">%s'
             '<span class="mini-body"><span class="mini-title"><span class="mini-rank%s">%d</span>%s</span>'
             '<span class="mini-meta">%s</span></span></button>'
-          ) % (kind, esc(qr), song_attr, esc(it["title"]), esc(" · ".join(bits)), esc(embed), esc(it["url"]),
+          ) % (kind, esc(qr), esc(qrm), song_attr, esc(it["title"]), esc(" · ".join(bits)), esc(embed), esc(it["url"]),
                esc(self.t("player.openSourceAudio" if kind == "audio" else "player.openSource")),
                PLATFORM_LABEL.get(it["platform"], ""), thumb, cls, rank, esc(it["title"]),
                esc(" · ".join(bits)))
@@ -568,7 +607,7 @@ class Builder:
             "bgm_wu": json.dumps([i["nativeId"].replace("song","") for i in self.wuyue_music_items(20)], ensure_ascii=False),
             "footer_updated": esc("%s %s" % (self.t("footer.updated"),
                                              fmt_date(self.snap.get("generatedAt")))),
-            "footer_note": esc(self.t("footer.generated")), "footer_status": "".join(status),
+            "footer_note": esc(self.t("footer.generated") + " · build " + build_id), "footer_status": "".join(status),
             "i18n_json": json.dumps({self.locale: self.strings}, ensure_ascii=False,
                                     separators=(",", ":")),
         }
