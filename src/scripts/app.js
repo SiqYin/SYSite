@@ -85,7 +85,9 @@
     mFoot.innerHTML = foot;
 
     mask.classList.add("open");
-    document.body.style.overflow = "hidden";
+    // 音频面板（左右两个浮层）打开时**不禁用页面滚动**：面板只占左右两角，
+    // 用户还要能继续上下翻看站点内容。视频弹窗照旧锁住背景。
+    if (!audioItem) document.body.style.overflow = "hidden";
     if (modal) modal.scrollTop = 0;
     setTimeout(function () { inject(p); }, 60);
   }
@@ -331,6 +333,17 @@
     return '<svg viewBox="0 0 24 24">' + (p[name] || "") + "</svg>";
   }
 
+  /* 同一时刻只允许一路音频：站内播放器要出声前，先把 BGM 压下去。
+     bgmWasPlaying 记着「本来在播」，关掉弹窗时再渐强恢复。 */
+  function hushBgm() {
+    try {
+      if (bgm.audio && !bgm.audio.paused) {
+        bgmWasPlaying = true;
+        bgm.audio.pause();
+      }
+    } catch (e) {}
+  }
+
   function renderAudio(p) {
     var tpl =
       // 上方一级弹窗内容：播放器本体（歌词已移到下方独立的一级弹窗）
@@ -392,6 +405,17 @@
     plIdx = 0;
     for (var i = 0; i < pl.length; i++) if (pl[i].song === p.song) { plIdx = i; break; }
 
+    // 同一时刻只允许一路播放：上一次的 audio 元素此时已被 mStage.innerHTML 换掉，
+    // 但它脱离 DOM 后仍会继续响（于是出现两首歌同时播）。这里显式停掉并移除旧元素。
+    if (el.audio) {
+      try {
+        el.audio.pause();
+        el.audio.removeAttribute("src");
+        el.audio.load();
+        if (el.audio.parentNode) el.audio.parentNode.removeChild(el.audio);
+      } catch (e) {}
+      el.audio = null;
+    }
     // 音源：原生 audio。不需要 CORS（只是播放，不读音频数据）
     el.audio = document.createElement("audio");
     el.audio.preload = "metadata";
@@ -407,6 +431,7 @@
       if (window.console && console.warn) console.warn("[player] load failed", e);
       try { showPlayerProblem(t("player.streamFail")); } catch (e2) {}
     }
+    hushBgm();
     el.audio.play().catch(function () { /* 自动播放被拦截时保持暂停态 */ });
   }
 
@@ -462,6 +487,7 @@
     });
 
     el.toggle.addEventListener("click", function () {
+      hushBgm();
       if (a.paused) a.play().catch(function () {}); else a.pause();
     });
     el.prev.addEventListener("click", function () { nextTrack(-1); });
@@ -727,6 +753,7 @@
     plIdx = (plIdx + step + pl.length) % pl.length;
     lastLrcIdx = -1;
     load(pl[plIdx]);
+    hushBgm();
     el.audio.play().catch(function () {});
   }
 
@@ -1473,7 +1500,29 @@
       g.fillStyle = "#ffffff";
       roundRect(g, L.qr.x, L.qr.y, L.qr.box, L.qr.box, 18);
       g.fill();
+      // 先把卡发出去（二维码位暂时留白）并在码位显示转圈，二维码到位后再补画一次。
+      // 这样即使二维码慢，分享弹窗也是立刻出来的，不会干等。
+      caption();
+      setQrLoading(true);
+      publish();
       loadQr(0);
+    }
+
+    // 二维码按「整数倍」绘制：源图是 1 bit 点阵，非整数倍缩放会让模块宽窄不一、
+    // 糊成灰块 —— 看起来就像「二维码没加载出来」。从能整除且塞得进白框的倍数里挑最大。
+    function qrDrawSize(nat) {
+      if (!nat) return L.qr.size;
+      var limit = L.qr.box - 6;
+      for (var d = 1; d <= 8; d++) {
+        if (nat % d) continue;
+        if (nat / d <= limit) return nat / d;
+      }
+      return L.qr.size;
+    }
+
+    function setQrLoading(on) {
+      var lo = document.getElementById("share-load");
+      if (lo) lo.classList.toggle("on", !!on);
     }
 
     function qrFail() {
@@ -1481,38 +1530,55 @@
       g.font = "400 17px " + FONT;
       g.textAlign = "center";
       g.fillText(t("share.scan"), L.qr.x + L.qr.box / 2, L.qr.y + L.qr.box / 2 + 6);
+      qrSettled();
+    }
+
+    // 二维码这一步结束（成功或失败）：收起转圈，把最新的一张卡再发一次
+    function qrSettled() {
+      setQrLoading(false);
+      publish();
     }
 
     function loadQr(attempt) {
-      if (!item.qr) { qrFail(); tail(); return; }
+      if (!item.qr) { qrFail(); return; }
+      // 二维码文件名里没有版本标记，一旦浏览器缓存过一次 404/坏响应就会一直失败
+      // （那块会显示浅灰「扫码打开」，看起来就像二维码没加载出来）。
+      // 带上构建版本号，每次部署都是新 URL，从根上绕开陈旧缓存。
       var base = assetUrl(item.qr);
+      var qv = window.SYS_BUILD || "";
+      if (qv) base += (base.indexOf("?") < 0 ? "?" : "&") + "v=" + encodeURIComponent(qv);
       var q = new Image();
       q.onload = function () {
         if (q.naturalWidth > 0) {
           try {
             g.save();
             g.imageSmoothingEnabled = false;     // 1 bit 二维码：关掉插值才清晰
-            g.drawImage(q, L.qr.x + (L.qr.box - L.qr.size) / 2,
-                           L.qr.y + (L.qr.box - L.qr.size) / 2, L.qr.size, L.qr.size);
+            var s = qrDrawSize(q.naturalWidth);  // 整数倍，模块宽度才是整数像素
+            g.drawImage(q, L.qr.x + (L.qr.box - s) / 2,
+                           L.qr.y + (L.qr.box - s) / 2, s, s);
             g.restore();
-          } catch (e) { console.warn("[share] 二维码绘制失败", e); qrFail(); }
-        } else { console.warn("[share] 二维码尺寸为 0", base); qrFail(); }
-        tail();
+          } catch (e) { console.warn("[share] 二维码绘制失败", e); qrFail(); return; }
+        } else { console.warn("[share] 二维码尺寸为 0", base); qrFail(); return; }
+        qrSettled();
       };
       q.onerror = function () {
         console.warn("[share] 二维码加载失败（第 " + (attempt + 1) + " 次）", base);
         if (attempt < 1) { loadQr(attempt + 1); return; }   // 重试一次，带时间戳绕开缓存
         qrFail();
-        tail();
       };
       q.src = attempt ? base + (base.indexOf("?") < 0 ? "?" : "&") + "r=" + Date.now() : base;
     }
 
-    function tail() {
+    // 卡片下方那行「扫码打开」小字（与二维码无关，先画好）
+    function caption() {
       g.fillStyle = "#5b7f9e";
       g.font = "400 " + L.capSize + "px " + FONT;
       g.textAlign = "center";
       g.fillText(t("share.scan"), capX, L.capY);
+    }
+
+    // 把当前画布导出并送到分享弹窗（可重复调用：二维码到位后再发一次）
+    function publish() {
       var url = "";
       try { url = cv.toDataURL("image/png"); }
       catch (e) { console.warn("[share] 画布导出失败", e); toast(t("player.copyFail")); return; }
@@ -1568,6 +1634,15 @@
     if (inner) inner.classList.toggle("wide", !!(item && item.kind === "video"));
     var img = document.getElementById("share-img");
     if (img) img.src = dataUrl;
+    // 「加载中」转圈的位置：按两种卡上二维码白框的实际比例定位
+    var lo = document.getElementById("share-load");
+    if (lo) {
+      var wide = !!(item && item.kind === "video");
+      lo.style.left = (wide ? 67.3 : 34.4) + "%";
+      lo.style.top = (wide ? 47.9 : 74.1) + "%";
+      lo.style.width = (wide ? 21.6 : 31.3) + "%";
+      lo.style.height = (wide ? 33.9 : 20.4) + "%";
+    }
     var a = document.getElementById("share-dl");
     if (a) {
       a.href = dataUrl;
@@ -1646,9 +1721,11 @@
       var m = localStorage.getItem("sys-bgm-mode");
       if (m) bgm.mode = m;
     } catch (e) {}
-    // BGM 是否自动播放：以「询问结果」为准（首次进来先问一次）
+    // BGM 是否自动播放：以「询问结果」为准（首次进来先问一次）。
+    // 键名用 sys-bgm-asked：旧键 sys-bgm-ask 被「手动点过 BGM 开关」也写过，
+    // 写过一次就永远不再弹询问（气泡就是这么消失的）—— 换键让那批脏数据失效。
     var asked = null;
-    try { asked = localStorage.getItem("sys-bgm-ask"); } catch (e) {}
+    try { asked = localStorage.getItem("sys-bgm-asked"); } catch (e) {}
     bgm.asked = asked;
     if (asked === "yes") {
       bgm.enabled = true;
@@ -1994,9 +2071,8 @@
       bgm.enabled = !bgm.enabled;
       try { localStorage.setItem("sys-bgm-off", bgm.enabled ? "0" : "1"); }
       catch (e) {}
-      // 手动开关过就视为已作答，别再弹询问
-      try { localStorage.setItem("sys-bgm-ask", bgm.enabled ? "yes" : "no"); } catch (e) {}
-      bgm.asked = bgm.enabled ? "yes" : "no";
+      // 这里只记「开关状态」，**不写询问结果** —— 询问结果那一位专属于气泡上的作答。
+      // 两者混用会让「点过一次 BGM 开关」永久压掉进站气泡，已经踩过这个坑。
       hideBgmAsk();
       if (bgm.enabled) { bgmPlayAt(bgm.idx || 0); }
       else if (bgm.audio) bgm.audio.pause();
@@ -2150,7 +2226,7 @@
 
   function bgmAnswer(ok) {
     bgm.asked = ok ? "yes" : "no";
-    try { localStorage.setItem("sys-bgm-ask", bgm.asked); } catch (e) {}
+    try { localStorage.setItem("sys-bgm-asked", bgm.asked); } catch (e) {}
     try { localStorage.setItem("sys-bgm-off", ok ? "0" : "1"); } catch (e) {}
     hideBgmAsk();
     if (ok) {

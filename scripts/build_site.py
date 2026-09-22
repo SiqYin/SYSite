@@ -37,6 +37,37 @@ try:
 except ImportError:
     segno = None
 
+try:
+    import qrcode
+except ImportError:
+    qrcode = None
+
+
+def write_qr(url, path):
+    """生成二维码 PNG。
+
+    统一 33 模块（version 4）+ border 4 + scale 4 = **恰好 164×164**，
+    与分享卡里的绘制尺寸完全相等 —— 前端可以 1:1 贴上去，每个模块整 4px，
+    不做任何缩放插值（1 bit 点阵一旦被非整数倍缩放就会糊成灰块，
+    看起来像「二维码没加载出来」）。
+    优先 segno；没有就退回 qrcode + Pillow。超长链接退回自动选版。
+    """
+    if segno is not None:
+        try:
+            q = segno.make(url, error="m", version=4)
+        except Exception:  # noqa: BLE001  —— 链接超出 v4 容量时自动选版
+            q = segno.make(url, error="m")
+        q.save(path, scale=4, border=4)
+        return
+    if qrcode is not None:
+        q = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M,
+                          version=4, box_size=4, border=4)
+        q.add_data(url)
+        q.make(fit=True)
+        q.make_image(fill_color="black", back_color="white").convert("1").save(path)
+        return
+    raise RuntimeError("no qr backend")
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DIST = os.path.join(ROOT, "dist")
@@ -1189,7 +1220,10 @@ SHELL = """<!DOCTYPE html>
       <span id="sm-title"></span>
       <button class="sm-x" id="share-x" type="button" aria-label="close">&times;</button>
     </div>
-    <img id="share-img" alt="">
+    <div class="sm-shot">
+      <img id="share-img" alt="">
+      <div class="sm-load" id="share-load" aria-hidden="true"><span class="sm-spin"></span></div>
+    </div>
     <p class="sm-hint" id="sm-hint"></p>
     <a class="pill-link primary" id="share-dl" download></a>
   </div>
@@ -1322,7 +1356,7 @@ def main():
     qr_dir = os.path.join(DIST, "assets", "qr")
     os.makedirs(qr_dir, exist_ok=True)
     qr_count = 0
-    if segno is not None:
+    if segno is not None or qrcode is not None:
         for it in (shared["snap"].get("items") or []):
             url = it.get("url") or ""
             if not url:
@@ -1331,13 +1365,13 @@ def main():
                 continue
             name = "%s-%s.png" % (it["platform"], re.sub(r"[^A-Za-z0-9_.-]", "_", str(it["nativeId"]))[:60])
             try:
-                segno.make(url, error="m").save(os.path.join(qr_dir, name), scale=8, border=4)
+                write_qr(url, os.path.join(qr_dir, name))
                 qr_count += 1
             except Exception:  # noqa: BLE001
                 continue
         print("  二维码 %d 张" % qr_count)
     else:
-        print("  ! 未安装 segno，跳过二维码生成（分享卡将不带二维码）")
+        print("  ! 未安装 segno/qrcode，跳过二维码生成（分享卡将不带二维码）")
 
     # BGM 用的曲目元数据（构建期生成，运行时按 id 查表；避免前端到处扫描 DOM）
     try:
