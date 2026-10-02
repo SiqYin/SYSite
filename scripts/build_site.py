@@ -765,6 +765,29 @@ class Builder:
                      ('<span class="mini-desc">%s</span>' % esc(it.get("description") or ""))
                      if it.get("description") else "")
 
+    def multilang_items(self, limit):
+        """精选多语言视频：标题含「多语」，或标题里出现 4 种以上语言名的投稿。
+
+        「三种以上（不含三种）」按 4 种算；语言名清单与阈值放在 config 的
+        featured.multiLangNames / featured.multiLangMin 里，随时可以加词。
+        同一段文字里嵌套的名字（如「中古汉语」里的「汉语」）只算一种，避免重复计数。
+        """
+        cfg = self.cfg.get("featured") or {}
+        names = cfg.get("multiLangNames") or []
+        need = int(cfg.get("multiLangMin") or 4)
+        out = []
+        for v in (self.data().get("videos") or []):
+            t = v.get("title") or ""
+            if "多语" in t:
+                out.append(v)
+                continue
+            hit = set(n for n in names if n in t)
+            hit = set(n for n in hit if not any(n != o and n in o for o in hit))
+            if len(hit) >= need:
+                out.append(v)
+        out.sort(key=lambda i: ((i.get("stats") or {}).get("play") or 0), reverse=True)
+        return out[:limit]
+
     def featured_block(self):
         """首页精选：精选视频 / 精选音乐 / 精选吴语视频，各可下拉到前 20。
 
@@ -795,6 +818,13 @@ class Builder:
                 self.t("pin.wuyue"),
                 [self.mini(v, i + 1) for i, v in enumerate(wu)],
                 href=(wc or {}).get("url"),
+                sub="%s · %s" % (self.t("meta.play"), self.t("feat.top20"))))
+
+        ml = self.multilang_items(limit)
+        if ml:
+            cols.append(self.feat_col(
+                self.t("pin.multilang"),
+                [self.mini(v, i + 1) for i, v in enumerate(ml)],
                 sub="%s · %s" % (self.t("meta.play"), self.t("feat.top20"))))
 
         wm = self.wuyue_music_items(limit)
@@ -1450,6 +1480,18 @@ def main():
             cover = it.get("cover")
             bgm[sid] = {"t": it.get("title") or "", "c": cover or "", "a": ((it.get("extra") or {}).get("album") or "")
             }
+        # 全站二维码点阵表：搜索结果、播放器队列、气泡这些入口的卡片是 JS 动态生成的，
+        # 元素上没有 data-qrm；分享时按「原链接」来查这张表（约 50 KB，真要用才拉一次）。
+        qrmap = {}
+        for it in (shared["snap"].get("items") or []):
+            u = it.get("url") or ""
+            if u and u not in qrmap:
+                b = qr_matrix_b64(u)
+                if b:
+                    qrmap[u] = b
+        open(os.path.join(DIST, "assets", "qr-matrix.json"), "w", encoding="utf-8").write(
+            json.dumps(qrmap, ensure_ascii=False, separators=(",", ":")))
+
         open(os.path.join(DIST, "assets", "bgm-meta.json"), "w", encoding="utf-8").write(json.dumps(bgm, ensure_ascii=False, separators=(",", ":")))
         print("  BGM 曲目表 %d 首" % len(bgm))
     except Exception as exc:  # noqa: BLE001

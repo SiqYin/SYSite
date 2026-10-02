@@ -1407,6 +1407,37 @@
        2. 二维码按整数倍绘制并关掉插值 —— 1 bit 图被 1.32× 插值放大后糊成灰块，
           看起来就像"没加载出来"；现在 PNG 用 scale=8/border=4 生成，绘制时 0.5× 取整
        3. 音频卡保持正方形封面（640×980 竖版）；视频卡用长方形横版（880×560） */
+  // 全站二维码点阵表（assets/qr-matrix.json，按原链接索引）。只在真需要时拉一次，
+  // 拉完缓存；并发调用一起等同一份结果。拉不到就交给图片兜底，不影响出卡。
+  var QRM = null, QRM_WAIT = [];
+  function qrmLookup(src, cb) {
+    if (!src) { cb(""); return; }
+    if (QRM) { cb(QRM[src] || ""); return; }
+    QRM_WAIT.push([src, cb]);
+    if (QRM_WAIT.length > 1) return;
+    var url = assetUrl("assets/qr-matrix.json");
+    var bv = window.SYS_BUILD || "";
+    if (bv) url += (url.indexOf("?") < 0 ? "?" : "&") + "v=" + encodeURIComponent(bv);
+    var settled = false;
+    function done(map) {
+      if (settled) return;
+      settled = true;
+      QRM = map || {};
+      var q = QRM_WAIT; QRM_WAIT = [];
+      for (var i = 0; i < q.length; i++) { try { q[i][1](QRM[q[i][0]] || ""); } catch (e) {} }
+    }
+    var x = new XMLHttpRequest();
+    try { x.open("GET", url, true); } catch (e) { done({}); return; }
+    x.onreadystatechange = function () {
+      if (x.readyState !== 4) return;
+      var map = {};
+      try { map = JSON.parse(x.responseText) || {}; } catch (e) { map = {}; }
+      done(map);
+    };
+    x.onerror = function () { done({}); };
+    x.send();
+  }
+
   function shareCardOf(item) {
     if (!item) return;
     var isVideo = item.kind === "video";
@@ -1508,12 +1539,16 @@
         publish();
         return;
       }
-      // 兜底（老页面没有 data-qrm）：走图片，先把卡发出去并在码位显示转圈，
-      // 二维码到位后再补画一次，不让整个弹窗干等。
+      // 元素上没带点阵的入口（搜索结果 / 播放器队列 / 正在播放气泡 —— 这些卡片是 JS
+      // 动态生成的，模板里没有 data-qrm）：按原链接查一次全站点阵表，查不到再退回图片。
+      // 先把卡发出去并在码位显示转圈，码到位后再补画一次，不让整个弹窗干等。
       caption();
       setQrLoading(true);
       publish();
-      loadQr(0);
+      qrmLookup(item.source, function (b64) {
+        if (b64 && drawQrMatrix(b64)) { setQrLoading(false); publish(); return; }
+        loadQr(0);
+      });
     }
 
     // 二维码按「整数倍」绘制：源图是 1 bit 点阵，非整数倍缩放会让模块宽窄不一、
@@ -1800,14 +1835,15 @@
     // BGM 是否自动播放：以「询问结果」为准（首次进来先问一次）。
     // 键名用 sys-bgm-asked：旧键 sys-bgm-ask 被「手动点过 BGM 开关」也写过，
     // 写过一次就永远不再弹询问（气泡就是这么消失的）—— 换键让那批脏数据失效。
-    var asked = null;
+    var asked = null, sess = null;
     try { asked = localStorage.getItem("sys-bgm-asked"); } catch (e) {}
+    try { sess = sessionStorage.getItem("sys-bgm-asked"); } catch (e) {}
     bgm.asked = asked;
-    if (asked === "yes") {
-      bgm.enabled = true;
-    } else {
-      bgm.enabled = false;      // 明确拒绝 or 还没问过 → 先不播
-    }
+    bgm.askedSession = sess;
+    // 询问频率：每次「进站」都问一次。用 sessionStorage 记「这次会话问过了」——
+    // 同一标签页里翻页、刷新不再重复问；关掉标签页或新开标签页＝新的一次进站，重新问。
+    // 这次会话还没问过 → 先不播，等作答；问过 → 按上次的选择（localStorage）决定要不要播。
+    bgm.enabled = (sess !== null && asked === "yes");
     // 这里**不能**再看 sys-bgm-off 来「兼容老访客」：手动开关过 BGM 也会把它写成 "0"，
     // 于是气泡又被静默吃掉（之前两轮都没弹出来就是它）。是否已作答只看 sys-bgm-asked。
 
@@ -1828,7 +1864,7 @@
     buildQueue();
     paintBgmBtn();
     if (bgm.enabled && bgm.asked) tryAutoStart();
-    else if (bgm.asked === null) showBgmAsk();   // 首次进入：顶部询问是否播放
+    else if (bgm.askedSession === null) showBgmAsk();   // 本次进站还没问过：顶部询问是否播放
 
     // ---------- 3) 后台补元数据（标题/封面）与播放器数据，回来刷新面板 ----------
     loadBgmMeta(function () {
@@ -2317,7 +2353,9 @@
 
   function bgmAnswer(ok) {
     bgm.asked = ok ? "yes" : "no";
+    bgm.askedSession = bgm.asked;
     try { localStorage.setItem("sys-bgm-asked", bgm.asked); } catch (e) {}
+    try { sessionStorage.setItem("sys-bgm-asked", bgm.asked); } catch (e) {}   // 本次进站已问过
     try { localStorage.setItem("sys-bgm-off", ok ? "0" : "1"); } catch (e) {}
     hideBgmAsk();
     if (ok) {
