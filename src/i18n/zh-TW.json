@@ -31,6 +31,8 @@
   "lang.label": "語言",
   "lang.pending": "該語言正在準備中，敬請期待",
   "lang.current": "繁體中文",
+  "lang.auto": "自動",
+  "lang.autoTip": "依網路位置判斷",
   "hero.enter": "進入嗶哩嗶哩",
   "hero.music": "進入網易雲音樂",
   "hero.github": "進入 GitHub",

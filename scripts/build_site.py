@@ -545,6 +545,8 @@ class Builder:
             href = self.locale_url(self.prefix, sub, page)
             lang_items.append('<a class="lang-item%s" href="%s" hreflang="%s"><span>%s</span></a>'
                               % (" is-active" if code == self.locale else "", esc(href), code, esc(label)))
+        lang_items.append('<a class="lang-item" href="#" hreflang="auto" title="%s"><span>%s</span></a>'
+                          % (esc(self.t("lang.autoTip")), esc(self.t("lang.auto"))))
         status = []
         for p, s in (self.snap.get("platformStatus") or {}).items():
             cls = "pstat" if s.get("ok") else "pstat stale"
@@ -1343,8 +1345,12 @@ DETECT_SCRIPT = """<script>(function(){
 var REGIONS=%(regions)s, GEOIP=%(geoip)s, DEFAULT=%(default)s;
 var SUB={"zh-CN":"","zh-TW":"zh-TW/","en":"en/","ja":"ja/"};
 var HERE="zh-CN";
-function saved(){try{return localStorage.getItem("sys-locale");}catch(e){return null;}}
-function remember(v){try{localStorage.setItem("sys-locale",v);}catch(e){}}
+// 「用户手选」才算数：只有点过语言菜单才会同时写下 sys-locale-pick。
+// 旧版本、或别处只写过 sys-locale 而没有 pick 标记的，一律当没手选 —— 否则那个值会把
+// IP 判断永久短路：首次进来没跳成、当前语言被写进 sys-locale，之后每次都在这里提前 return。
+function saved(){try{return localStorage.getItem("sys-locale-pick")?localStorage.getItem("sys-locale"):null;}catch(e){return null;}}
+function remember(v){try{localStorage.setItem("sys-locale",v);localStorage.setItem("sys-locale-pick","1");}catch(e){}}
+function forget(){try{localStorage.removeItem("sys-locale");localStorage.removeItem("sys-locale-pick");}catch(e){}}
 function go(target){
   if(!target||target===HERE||!(target in SUB))return;
   var path=location.pathname;
@@ -1352,11 +1358,21 @@ function go(target){
   var prefix=SUB[target];
   location.replace(path.replace(/[^/]*$/,prefix)+location.hash);
 }
+// 语言菜单：点哪一项＝明确选择；点「自动」＝清掉选择、按网络位置重新判断。
+try{
+  document.addEventListener("click",function(ev){
+    var el=ev.target;
+    var a=el&&el.closest?el.closest(".lang-item"):null;
+    if(!a)return;
+    var hl=String(a.getAttribute("hreflang")||"").toLowerCase();
+    if(hl==="auto"){ev.preventDefault();forget();location.reload();return;}
+    if(hl in SUB)remember(hl);
+  },true);
+}catch(e){}
 var pick=saved();
 if(pick&&(pick in SUB)){go(pick);return;}
 // 浏览器语言只当「兜底」算出来，不直接跳转 —— 归属地（IP）优先，
-// 这样人在日本、浏览器却是中文时也会落到日文站（之前中文浏览器会在这里直接 return，
-// 根本走不到 IP 那一步，IP 判断等于死代码）。
+// 这样人在日本、浏览器却是中文时也会落到日文站。
 function byLang(){
   var langs=(navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||""]).map(function(s){return String(s||"").toLowerCase();});
   for(var i=0;i<langs.length;i++){
@@ -1367,16 +1383,37 @@ function byLang(){
   }
   return "";
 }
-if(!GEOIP){go(byLang()||"en");return;}
+// 设备时区兜底：地理接口被墙/被拦/超时时，时区比浏览器语言更接近「人在哪」。
+function byTz(){
+  try{
+    var tz=String((Intl.DateTimeFormat().resolvedOptions()||{}).timeZone||"");
+    if(/^Asia\/(Tokyo|Osaka|Sapporo|Fukuoka)$/.test(tz))return "ja";
+    if(/^Asia\/(Shanghai|Chongqing|Urumqi|Harbin|Kashgar)$/.test(tz))return "zh-CN";
+    if(/^Asia\/(Taipei|Hong_Kong|Macau)$/.test(tz))return "zh-TW";
+  }catch(e){}
+  return "";
+}
+function fallback(){return byTz()||byLang()||"en";}
+if(!GEOIP){go(fallback());return;}
 var done=false;
-function byGeo(c){if(done)return;done=true;for(var k in REGIONS){if(c&&(REGIONS[k]||[]).indexOf(c)>=0){go(k);return;}}go(byLang()||"en");}
-try{
-  var x=new XMLHttpRequest();
-  x.open("GET",GEOIP,true);x.timeout=1200;
-  x.onload=function(){try{byGeo((JSON.parse(x.responseText).country||"").toUpperCase());}catch(e){byGeo("");}};
-  x.onerror=x.ontimeout=function(){byGeo("");};
-  x.send();
-}catch(e){byGeo("");}
+function byGeo(c){if(done)return;done=true;for(var k in REGIONS){if(c&&(REGIONS[k]||[]).indexOf(c)>=0){go(k);return;}}go(fallback());}
+var CK="sys-geo";
+try{var g=sessionStorage.getItem(CK);if(g){byGeo(g);return;}}catch(e){}
+// 多个地理源一起问，谁先答用谁：单点被墙/被拦/超时都不会退化成浏览器语言。
+var SRCS=[GEOIP,"https://get.geojs.io/v1/ip/country.json"], left=SRCS.length;
+function miss(){if(--left<=0&&!done)byGeo("");}
+for(var i=0;i<SRCS.length;i++){(function(u){
+  try{
+    var x=new XMLHttpRequest();x.open("GET",u,true);x.timeout=2500;
+    x.onload=function(){
+      var c="";
+      try{var d=JSON.parse(x.responseText)||{};c=String(d.country||d.country_code||"").toUpperCase();}catch(e){}
+      if(c){try{sessionStorage.setItem(CK,c);}catch(e){}byGeo(c);}else{miss();}
+    };
+    x.onerror=x.ontimeout=function(){miss();};
+    x.send();
+  }catch(e){miss();}
+})(SRCS[i]);}
 })();</script>"""
 
 

@@ -1220,9 +1220,27 @@
     if (!btn || !menu) return;
     var items = menu.querySelectorAll(".lang-item");
     for (var i = 0; i < items.length; i++) {
-      items[i].addEventListener("click", function () {
+      items[i].addEventListener("click", function (e) {
         var code = this.getAttribute("hreflang");
-        try { if (code) localStorage.setItem("sys-locale", code); } catch (e) {}
+        // 「自动」：清掉手选，回到根路径按网络位置重新判断。
+        // 放在这里而不是判定脚本里 —— 判定脚本只在根页面注入，在日文/英文页上点它是无效的。
+        if (code === "auto") {
+          e.preventDefault();
+          try {
+            localStorage.removeItem("sys-locale");
+            localStorage.removeItem("sys-locale-pick");
+          } catch (err) {}
+          var root = location.pathname.replace(/\/(zh-TW|en|ja)\//, "/").replace(/[^\/]*$/, "");
+          location.href = root || "/";
+          return;
+        }
+        // 只有「用户主动点」才算数：同时写下 pick 标记，首访语言判断才认这个选择。
+        try {
+          if (code) {
+            localStorage.setItem("sys-locale", code);
+            localStorage.setItem("sys-locale-pick", "1");
+          }
+        } catch (err) {}
       });
     }
     btn.addEventListener("click", function (e) { e.stopPropagation(); menu.classList.toggle("open"); });

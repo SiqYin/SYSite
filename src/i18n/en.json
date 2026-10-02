@@ -31,6 +31,8 @@
   "lang.label": "Language",
   "lang.pending": "This language is still in preparation",
   "lang.current": "English",
+  "lang.auto": "Auto",
+  "lang.autoTip": "Detect by location",
   "hero.enter": "Visit Bilibili",
   "hero.music": "Visit NetEase Music",
   "hero.github": "Visit GitHub",
