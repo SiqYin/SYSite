@@ -650,22 +650,40 @@ class Builder:
                      hero_note, "".join(links))
 
     def wuyue_items(self, limit):
-        """精选吴语视频：取指定视频合集（默认「吴越春秋」）内的视频，按播放量从高到低。
+        """精选吴语视频：标题含「吴语」的全部投稿 ∪ 指定合集内的全部视频，按播放量从高到低。
 
-        来源通过 config/site.json 的 featured.wuSource 配置（按合集标题匹配），
+        两条规则取并集、重叠只算一次：
+          1) 本站投稿里标题含「吴语」/「吳語」的 —— 新投稿标题里写了「吴语」就自动进榜，
+             不必记得手动加进合集；
+          2) config/site.json 的 featured.wuSource（默认「吴越春秋」）合集内的 —— 人工策展，
+             标题没写「吴语」的也能收进来。
         想换成别的合集或别人账号的合集，改配置即可，不用动代码。
         """
         name = (self.cfg.get("featured") or {}).get("wuSource") or "吴越春秋"
-        index = {i["id"]: i for i in self.data()["videos"]}
+        vids = self.data()["videos"]
+        index = {i["id"]: i for i in vids}
+        picked = {}
+        # 规则一：本站投稿里标题含「吴语」（含繁体「吳語」）的全部视频
+        for v in vids:
+            t = v.get("title") or ""
+            if "吴语" in t or "吳語" in t:
+                picked[v["id"]] = v
+        # 规则二：featured.wuSource 指定的视频合集（默认「吴越春秋」）内的全部视频，
+        #         作为人工策展的补充 —— 标题没写「吴语」但已归入合集的也收。
+        season = None
         for c in self.collections:
             if (c.get("extra") or {}).get("kind") != "season":
                 continue
             if (c.get("title") or "").strip() != name:
                 continue
-            items = [index[i] for i in (c.get("memberIds") or []) if i in index]
-            items.sort(key=lambda i: ((i.get("stats") or {}).get("play") or 0), reverse=True)
-            return items[:limit], c
-        return [], None
+            season = c
+            for i in (c.get("memberIds") or []):
+                if i in index:
+                    picked[i] = index[i]
+            break
+        items = list(picked.values())      # 两条规则取并集，重叠的只算一次
+        items.sort(key=lambda i: ((i.get("stats") or {}).get("play") or 0), reverse=True)
+        return items[:limit], season
 
     def feat_col(self, title, minis, source_key=None, href=None, sub=None, scroll=True):
         """精选区的一栏。
@@ -1264,6 +1282,8 @@ SHELL = """<!DOCTYPE html>
       <div class="sm-load" id="share-load" aria-hidden="true"><span class="sm-spin"></span></div>
     </div>
     <p class="sm-hint" id="sm-hint"></p>
+    <!-- 备用分享方式：点一下自动复制原链接（二维码扫不出来时用） -->
+    <button class="sm-link" id="share-copy" type="button"></button>
     <a class="pill-link primary" id="share-dl" download></a>
   </div>
 </div>
@@ -1304,21 +1324,25 @@ function go(target){
 }
 var pick=saved();
 if(pick&&(pick in SUB)){go(pick);return;}
-var langs=(navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||""]).map(function(s){return String(s||"").toLowerCase();});
-for(var i=0;i<langs.length;i++){
-  var l=langs[i];
-  if(/^zh(-|$)/.test(l)){
-    if(/hant|tw|hk|mo/.test(l)){go("zh-TW");}else{go("zh-CN");}
-    return;
+// 浏览器语言只当「兜底」算出来，不直接跳转 —— 归属地（IP）优先，
+// 这样人在日本、浏览器却是中文时也会落到日文站（之前中文浏览器会在这里直接 return，
+// 根本走不到 IP 那一步，IP 判断等于死代码）。
+function byLang(){
+  var langs=(navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||""]).map(function(s){return String(s||"").toLowerCase();});
+  for(var i=0;i<langs.length;i++){
+    var l=langs[i];
+    if(/^zh(-|$)/.test(l)){return /hant|tw|hk|mo/.test(l)?"zh-TW":"zh-CN";}
+    if(/^ja(-|$)/.test(l)){return "ja";}
+    if(/^en(-|$)/.test(l)){return "en";}
   }
-  if(/^ja(-|$)/.test(l)){go("ja");return;}
+  return "";
 }
-if(!GEOIP){go("en");return;}
+if(!GEOIP){go(byLang()||"en");return;}
 var done=false;
-function byGeo(c){if(done)return;done=true;for(var k in REGIONS){if((REGIONS[k]||[]).indexOf(c)>=0){go(k);return;}}go("en");}
+function byGeo(c){if(done)return;done=true;for(var k in REGIONS){if(c&&(REGIONS[k]||[]).indexOf(c)>=0){go(k);return;}}go(byLang()||"en");}
 try{
   var x=new XMLHttpRequest();
-  x.open("GET",GEOIP,true);x.timeout=900;
+  x.open("GET",GEOIP,true);x.timeout=1200;
   x.onload=function(){try{byGeo((JSON.parse(x.responseText).country||"").toUpperCase());}catch(e){byGeo("");}};
   x.onerror=x.ontimeout=function(){byGeo("");};
   x.send();

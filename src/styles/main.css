@@ -1798,3 +1798,13 @@ footer {
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: default;
 }
 .sm-hint { margin: 10px 0 12px; font-size: 12.5px; color: var(--faint); line-height: 1.6; }
+/* 备用分享：原链接一行，点一下自动复制 */
+.sm-link {
+  display: block; width: 100%; margin: 2px 0 10px; padding: 10px 12px;
+  border: 1px solid var(--line, #d7e3ee); border-radius: var(--r-md, 12px);
+  background: #fff; color: #2c6c9e; font: inherit; font-size: 12px;
+  text-align: center; cursor: pointer; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+}
+.sm-link:hover { background: #f2f8fd; }
+.sm-link:active { transform: scale(.99); }

@@ -12,8 +12,8 @@
   "localeDetect": {
     "_note": [
       "首访语言自动判断。只在「根路径」（即简中首页）上生效，且尊重用户手动选过的语言。",
-      "优先级：localStorage 里记的选择 > 浏览器语言（中文/日文可直接判定）> IP 归属地 > 英文兜底。",
-      "浏览器语言能判定的情况不发任何网络请求；只有浏览器语言是英文/其他时才查一次 IP。",
+      "优先级：localStorage 里记的选择 > IP 归属地 > 浏览器语言 > 英文兜底。",
+      "归属地查询走 geoipEndpoint；超时或失败时回退到浏览器语言，再不行用英文。",
       "把 enable 设为 false 可完全关闭自动跳转。"
     ],
     "enable": true,
@@ -72,7 +72,7 @@
       "SiqYin/wugniu_zyinzozin",
       "SiqYin/fcitx5-android"
     ],
-    "maxItems": 20,
+    "maxItems": 30,
     "initialItems": 3
   },
   "assets": {

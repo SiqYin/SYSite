@@ -1666,6 +1666,33 @@
     return null;
   }
 
+  /* 复制到剪贴板：优先异步 API，不可用/被拒时退回 execCommand（老浏览器与部分内置浏览器） */
+  function copyToClipboard(text, okMsg) {
+    var ok = function () { toast(okMsg || t("share.copied")); };
+    var bad = function () { toast(t("player.copyFail")); };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(ok, function () { legacyCopy(text, ok, bad); });
+        return;
+      }
+    } catch (e) {}
+    legacyCopy(text, ok, bad);
+  }
+  function legacyCopy(text, ok, bad) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      var done = document.execCommand("copy");
+      document.body.removeChild(ta);
+      if (done) ok(); else bad();
+    } catch (e) { bad(); }
+  }
+
   function showShareModal(dataUrl, item) {
     var box = document.getElementById("share-modal");
     if (!box) return;
@@ -1687,6 +1714,15 @@
     if (a) {
       a.href = dataUrl;
       a.download = (item && item.title ? item.title.slice(0, 40) : "share") + ".png";
+    }
+    // 备用分享方式：原链接一行，点一下自动复制（二维码扫不出来时就发链接）
+    var cp = document.getElementById("share-copy");
+    if (cp) {
+      var link = (item && item.source) || "";
+      cp.textContent = link || t("player.copy");
+      cp.title = t("share.copyTip");
+      cp.setAttribute("aria-label", t("share.copyTip"));
+      cp.onclick = function () { if (link) copyToClipboard(link, t("share.copied")); };
     }
     box.classList.add("open");
   }
@@ -1914,15 +1950,22 @@
        降到 0，最后才真正 pause），这几百毫秒里 a.paused 仍然是 false ——
        于是再点一下会被判成「继续播」，图标也不翻，表现就是「点好几次才有反应」。
        这里改成直接 pause/play：状态与图标同步翻转；渐弱只留给自动让位（开弹窗时）。 */
-    if (a.paused) {
-      if (!bgm.curUrl) bgmPlayAt(bgm.idx || 0);
-      else bgmResumeFade();          // 手动继续：从原位置渐强
-    } else {
+    var audible = !a.paused && !a.muted;      // 真正在出声才算「在播」
+    if (audible) {
       try {
         if (bgm.fadeTimer) { clearInterval(bgm.fadeTimer); bgm.fadeTimer = null; }
         a.pause();
         a.volume = Number(bgm.fadeBase) || Number(a.volume) || 0.55;   // 还原音量，续播才有声
       } catch (e) {}
+    } else {
+      a.muted = false;                        // 静音起播中：先开声，再继续/起播
+      bgm.needsUnmute = false;
+      if (a.paused) {
+        if (!bgm.curUrl) bgmPlayAt(bgm.idx || 0);
+        else bgmResumeFade();                 // 手动继续：从原位置渐强
+      } else {
+        try { a.play(); } catch (e) {}
+      }
     }
     paintBgmBar();
   }
@@ -1940,8 +1983,11 @@
     var unlock = function (ev) {
       if (!bgm.audio || !bgm.enabled) return;
       var tgt = ev.target;
+      // 面板/弹窗自己的按钮（尤其 BGM 面板的播放暂停键）有自己的处理逻辑，这里绝不能先
+      // play()：pointerdown 先播一下、click 再读 a.paused 就变成「暂停」，播放键等于没反应。
+      if (tgt && tgt.closest && tgt.closest("#bgm-panel,#share-modal,.op-bubble")) return;
       var onContent = tgt && tgt.closest && tgt.closest(
-        "[data-play],[data-song],[data-bvid],[data-kind],.modal-mask,#bgm-btn,#bgm-panel,#share-modal,.op-bubble");
+        "[data-play],[data-song],[data-bvid],[data-kind],.modal-mask,#bgm-btn");
       if (onContent) {
         // 点内容：只确保「静音也在跑」，不抢声道 —— openModal 会在同一手势里暂停它
         if (bgm.audio.paused) bgm.audio.play().catch(function () {});
@@ -2218,7 +2264,7 @@
       md.textContent = t("bgm." + bgm.mode);
       md.title = t("bgm.mode") + "：" + t("bgm." + bgm.mode);
     }
-    if (tg) tg.innerHTML = a && !a.paused ? icon("pause") : icon("play");
+    if (tg) tg.innerHTML = a && !a.paused && !a.muted ? icon("pause") : icon("play");
     if (!a || !fill) return;
     var d = a.duration || 0;
     var r = d ? (a.currentTime / d) * 100 : 0;
