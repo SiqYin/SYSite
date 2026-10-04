@@ -86,8 +86,8 @@
   "player.noEmbed": "該內容暫不支援站內播放，請點擊下方按鈕前往原平台。",
   "player.noLyric": "這首歌暫時沒有歌詞",
   "player.lyrics": "歌詞",
-  "player.translation": "譯文",
-  "player.trHint": "顯示或隱藏譯文（吳語拼音等）",
+  "player.translation": "字音",
+  "player.trHint": "顯示或隱藏字音（吳語拼音等）",
   "q.128": "標準",
   "q.192": "較高",
   "q.320": "極高",
@@ -97,6 +97,7 @@
   "player.streamFail": "音源載入失敗，可重試或改用官方播放器",
   "player.note": "播放器由原平台提供，音畫品質以原站為準",
   "footer.updated": "資料更新時間",
+  "note.shanghainese": "",
   "footer.generated": "本站由建置腳本自動產生",
   "footer.status": "資料來源狀態",
   "status.ok": "正常",
@@ -132,7 +133,7 @@
   "stats.note": "以上為建置時快照的彙總，隨每次更新自動重算。",
   "share.title": "分享",
   "share.hint": "長按圖片儲存到相簿，或掃碼開啟",
-  "share.scan": "掃碼查看",
+  "share.scan": "掃碼查看",
   "share.copyTip": "點擊自動複製原連結",
   "share.copied": "已自動複製",
   "share.save": "儲存到相簿",
@@ -165,5 +166,6 @@
   "bgm.ask": "要為你播放背景音樂嗎？",
   "bgm.askYes": "好的，播放",
   "bgm.askNo": "不用了",
-  "bgm.playing": "正在播放背景音樂"
+  "bgm.playing": "正在播放背景音樂",
+  "player.lyricTrans": "翻譯歌詞"
 }

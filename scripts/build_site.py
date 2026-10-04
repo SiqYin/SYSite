@@ -19,6 +19,7 @@
 """
 
 import argparse
+import copy
 import base64
 import calendar
 import html
@@ -111,6 +112,7 @@ DIST = os.path.join(ROOT, "dist")
 SRC = os.path.join(ROOT, "src")
 
 SNAPSHOT = os.path.join(ROOT, "data", "snapshot.json")
+I18N_CACHE = os.path.join(ROOT, "data", "i18n-cache.json")
 CURATED = os.path.join(ROOT, "data", "curated.json")
 CONFIG = os.path.join(ROOT, "config", "site.json")
 
@@ -1442,10 +1444,33 @@ def main():
         print("  清空 dist …")
         clean_dir(DIST)
 
+    # 翻译记忆：按界面语言替换稿件/文集标题（原文保留在 titleSrc，供悬浮提示）
+    cache = load_json(I18N_CACHE, {}) or {}
+    tmap, cmap = cache.get("titles") or {}, cache.get("collections") or {}
+    snap0 = shared["snap"]
+
+    def snap_for(code):
+        if code == "zh-CN" or not tmap:
+            return snap0
+        s2 = copy.deepcopy(snap0)
+        hit = 0
+        for it in s2.get("items") or []:
+            e = tmap.get(it.get("id"))
+            if e and e.get(code):
+                it["titleSrc"] = it["title"]; it["title"] = e[code]; hit += 1
+        for c2 in s2.get("collections") or []:
+            e = cmap.get(c2.get("id"))
+            if e and e.get(code):
+                c2["titleSrc"] = c2["title"]; c2["title"] = e[code]; hit += 1
+        print("   %-6s 标题译文 %d 条" % (code, hit))
+        return s2
+
     per_locale = []
     for code, label, _ in LOCALES:
+        shared["snap"] = snap_for(code)
         files = Builder(code, shared).write()
         per_locale.append((label, files))
+    shared["snap"] = snap0          # 共享资源（BGM 等）仍用中文原始数据
 
     os.makedirs(os.path.join(DIST, "assets"), exist_ok=True)
     for src_sub, dist_sub in (("styles", "css"), ("scripts", "js")):
@@ -1576,6 +1601,19 @@ def main():
         print("  首屏图片已标 fetchpriority=high")
     except Exception as exc:  # noqa: BLE001
         print("  ! 首屏图片优先级跳过：%s" % exc)
+
+    # 歌词译文：按语言导出，前端打开播放器时按需读取
+    for code, _, _ in LOCALES:
+        if code == "zh-CN":
+            continue
+        m = {}
+        for sid, ent in (cache.get("lyrics") or {}).items():
+            d = ent.get(code)
+            if isinstance(d, dict) and d:
+                m[sid] = d
+        with open(os.path.join(DIST, "assets", "i18n-lyrics.%s.json" % code), "w", encoding="utf-8") as f:
+            json.dump(m, f, ensure_ascii=False, separators=(",", ":"))
+        print("   歌词译文 %-6s %d 首" % (code, len(m)))
 
     shutil.copy(SNAPSHOT, os.path.join(DIST, "snapshot.json"))
     with open(os.path.join(DIST, "robots.txt"), "w", encoding="utf-8") as f:

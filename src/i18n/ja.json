@@ -86,8 +86,8 @@
   "player.noEmbed": "この作品はサイト内で再生できません。下のボタンから元のプラットフォームを開いてください。",
   "player.noLyric": "この曲にはまだ歌詞がありません",
   "player.lyrics": "歌詞",
-  "player.translation": "訳文",
-  "player.trHint": "訳文の表示／非表示（呉語ピンインなど）",
+  "player.translation": "字音",
+  "player.trHint": "字音の表示／非表示（呉語ピンインなど）",
   "q.128": "標準",
   "q.192": "高音質",
   "q.320": "超高音質",
@@ -97,6 +97,7 @@
   "player.streamFail": "音源の読み込みに失敗しました。再試行するか公式プレイヤーをご利用ください",
   "player.note": "プレイヤーは元プラットフォーム提供、品質は元サイトに準じます",
   "footer.updated": "データ更新日時",
+  "note.shanghainese": "",
   "footer.generated": "このサイトはビルドスクリプトで自動生成されています",
   "footer.status": "データソースの状態",
   "status.ok": "正常",
@@ -132,7 +133,7 @@
   "stats.note": "数値はビルド時スナップショットの集計で、更新のたびに再計算されます。",
   "share.title": "シェア",
   "share.hint": "画像を長押しして保存、またはQRを読み取ってください",
-  "share.scan": "QRで開く",
+  "share.scan": "QRで開く",
   "share.copyTip": "タップで元リンクをコピー",
   "share.copied": "コピーしました",
   "share.save": "画像を保存",
@@ -165,5 +166,6 @@
   "bgm.ask": "BGM を再生しますか？",
   "bgm.askYes": "はい、再生",
   "bgm.askNo": "いいえ",
-  "bgm.playing": "BGM を再生中"
+  "bgm.playing": "BGM を再生中",
+  "player.lyricTrans": "翻訳歌詞"
 }
