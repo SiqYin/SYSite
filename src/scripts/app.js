@@ -1789,7 +1789,7 @@
     meta: {},          // songId -> {t, c, a}
     list: [],          // 播放单 [{song, t, c, a}]
     idx: 0,
-    mode: "shuffle",   // shuffle | order | reverse | loop
+    mode: "order",   // shuffle | order | reverse | loop
     queue: [],         // 第一轮乱序队列
     firstRoundDone: false,
     enabled: true,
@@ -1836,7 +1836,7 @@
     var wuIds = window.SYS_BGM_WU || [];            // 构建期注入的吴语歌单
     var stored = null;
     try { stored = JSON.parse(localStorage.getItem("sys-bgm-list") || "null"); } catch (e) {}
-    var songIds = (stored && stored.length) ? stored : BGM_DEFAULT.concat(wuIds);
+    var songIds = BGM_DEFAULT.slice();   // 固定这 5 首，不再拼接吴语歌单
     var seen = {};
     bgm.list = [];
     for (var i = 0; i < songIds.length; i++) {
@@ -1845,7 +1845,7 @@
       bgm.list.push(bgmEntry(songIds[i]));
     }
     bgm.initialCount = Math.min(BGM_DEFAULT.length, bgm.list.length);
-    bgm.userReordered = !!stored;
+    bgm.userReordered = false;   // 每次进站都重新随机，忽略历史拖拽顺序
     try {
       var m = localStorage.getItem("sys-bgm-mode");
       if (m) bgm.mode = m;
@@ -1960,34 +1960,21 @@
       bgm.idx = 0;
       return;
     }
-    // 没拖拽过 → 前 5 首乱序，其余按顺序
-    var head = list.slice(0, Math.min(bgm.initialCount, list.length));
-    var tail = list.slice(Math.min(bgm.initialCount, list.length));
-    for (var i = head.length - 1; i > 0; i--) {
+    // 每次进站整单乱序：5 首随机排列，之后按这个顺序依次播完再列表循环
+    var q = list.slice();
+    for (var i = q.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1));
-      var tmp = head[i]; head[i] = head[j]; head[j] = tmp;
+      var tmp = q[i]; q[i] = q[j]; q[j] = tmp;
     }
-    bgm.queue = head.concat(tail);
+    bgm.queue = q;
     bgm.idx = 0;
-    // 第一轮只播前 5 首（乱序），之后从吴语歌单开始按顺序循环
-    bgm.roundOne = head.length;
+    bgm.roundOne = false;
   }
 
   function bgmAdvance(auto) {
     if (bgm.mode === "loop" && auto) { bgmPlayAt(bgm.idx); return; }
-    // 第一轮结束：如果还在前 initialCount 首内，跳到吴语歌单部分
-    if (bgm.roundOne && bgm.idx >= bgm.roundOne - 1) {
-      bgm.roundOne = false;
-      bgm.idx = bgm.initialCount;   // 从吴语歌单的第一首开始
-      if (bgm.idx >= bgm.queue.length) bgm.idx = 0;
-      bgmPlayAt(bgm.idx);
-      return;
-    }
     bgm.idx += 1;
-    if (bgm.idx >= bgm.queue.length) {
-      if (bgm.mode === "loop") { bgm.idx = bgm.initialCount; }
-      else { bgm.idx = 0; }
-    }
+    if (bgm.idx >= bgm.queue.length) bgm.idx = 0;   // 播完最后一首回到列表第一首
     bgmPlayAt(bgm.idx);
   }
 

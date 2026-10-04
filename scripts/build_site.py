@@ -805,13 +805,13 @@ class Builder:
         if d["videos"]:
             cols.append(self.feat_col(
                 self.t("pin.videos"),
-                [self.mini(v, i + 1) for i, v in enumerate(d["videos"][:show])],
+                [self.mini(v, i + 1) for i, v in enumerate(d["videos"][:limit])],
                 source_key="videos"))
 
         if d["songs"]:
             cols.append(self.feat_col(
                 self.t("pin.music"),
-                [self.mini(s, i + 1) for i, s in enumerate(d["songs"][:show])],
+                [self.mini(s, i + 1) for i, s in enumerate(d["songs"][:limit])],
                 source_key="songs"))
 
         wu, wc = self.wuyue_items(limit)
