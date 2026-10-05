@@ -1808,3 +1808,17 @@ footer {
 }
 .sm-link:hover { background: #f2f8fd; }
 .sm-link:active { transform: scale(.99); }
+
+/* 播放器弹窗：内容超高时自己滚（滑轮在弹窗内只滚弹窗，不再带着整页跑） */
+.op-bubble { max-height: calc(100vh - 118px); overflow-y: auto; overscroll-behavior: contain; }
+.op-bubble::-webkit-scrollbar { width: 6px; }
+.op-bubble::-webkit-scrollbar-thumb { background: rgba(255,255,255,.26); border-radius: 3px; }
+/* 歌词弹窗：滑轮滚动歌词（见 app.js 的 wheel 处理） */
+.lyr-clip { overscroll-behavior: contain; }
+/* 歌词译文行：与「字音」并存，当前行显示 */
+.lyr-tt { display: none; font-size: 13px; font-weight: 400; opacity: .78; max-width: 100%;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lyr-box:not(.no-tt) .lyr-line.on .lyr-tt { display: block; }
+/* 精选栏：下拉提示改成可点击的展开按钮 */
+.more-row.more-pull { margin-top: 10px; }
+.more-row.more-pull .pill-link { font-size: 12.5px; }

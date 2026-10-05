@@ -704,10 +704,15 @@ class Builder:
         attr = (' data-top3="%s" data-top3-limit="%d"' % (source_key, limit)) if source_key else ""
         if scroll:
             max_h = show * 66 + (show - 1) * 10 + 2
-            body = ('<div class="mini-list scroll"%s style="max-height:%dpx">%s</div>'
-                    '<p class="mini-hint">%s</p>'
-                    % (attr, max_h, "".join(minis),
-                       esc(self.t("feat.pull").replace("{n}", str(limit)))))
+            pull_txt = esc(self.t("feat.pull").replace("{n}", str(limit)))
+            body = ('<div class="mini-list scroll"%s data-pull-max="%d" style="max-height:%dpx">%s</div>'
+                    '<div class="more-row more-pull"><button class="pill-link ghost" type="button" '
+                    'data-pull-btn data-pull-text="%s">'
+                    '<span data-pull-label>%s</span>'
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+                    'stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'
+                    '</button></div>'
+                    % (attr, max_h, max_h, "".join(minis), pull_txt, pull_txt))
         else:
             body = '<div class="mini-list">%s</div>' % "".join(minis)
         return ('<div class="feat-col"><div class="subsection-head"><h3>%s</h3>'
