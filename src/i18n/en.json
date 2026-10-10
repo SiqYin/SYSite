@@ -167,5 +167,8 @@
   "bgm.askYes": "Yes, play it",
   "bgm.askNo": "No, thanks",
   "bgm.playing": "Background music is playing",
-  "player.lyricTrans": "Translate lyrics"
+"player.lyricTrans": "Translate lyrics",
+  "feat.latest": "Newest first",
+  "feat.pinned": "Pinned on GitHub",
+  "feat.pullAll": "Scroll down for all {n}"
 }

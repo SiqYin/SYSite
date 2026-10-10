@@ -167,5 +167,8 @@
   "bgm.askYes": "好的，播放",
   "bgm.askNo": "不用了",
   "bgm.playing": "正在播放背景音樂",
-  "player.lyricTrans": "翻譯歌詞"
+"player.lyricTrans": "翻譯歌詞",
+  "feat.latest": "最新投稿優先",
+  "feat.pinned": "GitHub 釘選",
+  "feat.pullAll": "向下拉可查看全部 {n} 個"
 }

@@ -76,8 +76,8 @@
   "featured": {
     "_note": [
       "首页精选栏。wuSource 指「精选吴语视频」取哪个视频合集（按标题匹配），按播放量从高到低。",
-      "fixedProjects 是「精选项目」栏固定展示的仓库（按 fullName 匹配），",
-      "这一栏是人工指定的，不随排序或其他变化而变化。"
+      "「精选项目」栏与 GitHub 主页钉选的仓库联动（按钉选顺序，见 adapter_github.py 的 pinned 解析），",
+      "fixedProjects 只是快照里没有 pinned 数据时的兜底清单（按 fullName 匹配）。"
     ],
     "wuSource": "吴越春秋",
     "fixedProjects": [

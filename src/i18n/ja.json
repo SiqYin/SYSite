@@ -167,5 +167,8 @@
   "bgm.askYes": "はい、再生",
   "bgm.askNo": "いいえ",
   "bgm.playing": "BGM を再生中",
-  "player.lyricTrans": "翻訳歌詞"
+"player.lyricTrans": "翻訳歌詞",
+  "feat.latest": "新着順",
+  "feat.pinned": "GitHubでピン留め",
+  "feat.pullAll": "下にスクロールで全 {n} 件"
 }

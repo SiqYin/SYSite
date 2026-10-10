@@ -121,14 +121,18 @@ def main():
         print("    完成，用时 %.1fs，%s" % (res["seconds"], client.report()), flush=True)
 
     # 未参与本次采集的平台，直接沿用旧数据。
-    # 注意：不要把 prev 的整个 player 塞进来——那会覆盖已采集平台的新数据
-    # （player.update 是后写覆盖先写）。没采集的平台本来就没有播放器数据。
+    # playerData 也要回带：播放器直链/歌词挂在网易云等平台的采集结果上，
+    # --only 部分采集时若不回带，build_snapshot 合并后 player 会变成空表，
+    # 自建播放器的音频直链和歌词就全丢了。
+    # 注意：不要把 prev 的整个 player 塞进「已采集」平台——那会覆盖新数据
+    # （player.update 是后写覆盖先写）。已采集平台本来就会带自己的 playerData。
     for name in ORDER:
         if name not in platforms:
             platforms[name] = {
                 "ok": True, "items": prev_platforms.get(name, []),
                 "collections": prev_collections.get(name, []),
                 "profile": prev_profiles.get(name), "fetchedAt": None,
+                "playerData": prev.get("player") or {},
             }
 
     snapshot = M.build_snapshot(platforms, errors=errors)

@@ -689,12 +689,14 @@ class Builder:
         items.sort(key=lambda i: ((i.get("stats") or {}).get("play") or 0), reverse=True)
         return items[:limit], season
 
-    def feat_col(self, title, minis, source_key=None, href=None, sub=None, scroll=True):
+    def feat_col(self, title, minis, source_key=None, href=None, sub=None, scroll=True,
+                 hint=None):
         """精选区的一栏。
 
         scroll=True  → 可向下拉的榜单（默认露 initialItems 条，最多 maxItems 条），
                        带「向下拉」提示，跟随排序的栏还要带 data-top3 让前端实时刷新。
-        scroll=False → 固定内容，不滚动、不加下拉提示（例如人工指定的精选项目）。
+        scroll=False → 固定内容，不滚动、不加下拉提示。
+        hint         → 覆盖默认的下拉提示文案（例如列表不足 maxItems 时报实际数目）。
         """
         cfg = self.cfg.get("featured") or {}
         limit = int(cfg.get("maxItems") or 20)
@@ -704,7 +706,7 @@ class Builder:
         attr = (' data-top3="%s" data-top3-limit="%d"' % (source_key, limit)) if source_key else ""
         if scroll:
             max_h = show * 66 + (show - 1) * 10 + 2
-            pull_txt = esc(self.t("feat.pull").replace("{n}", str(limit)))
+            pull_txt = esc(hint or self.t("feat.pull").replace("{n}", str(limit)))
             body = ('<div class="mini-list scroll"%s data-pull-max="%d" style="max-height:%dpx">%s</div>'
                     '<div class="more-row more-pull"><button class="pill-link ghost" type="button" '
                     'data-pull-btn data-pull-text="%s">'
@@ -736,7 +738,17 @@ class Builder:
         return items[:limit]
 
     def fixed_project_items(self):
-        """精选项目栏：按配置里写死的仓库顺序取（人工指定，不随排序变化）。"""
+        """精选项目栏：与 GitHub 主页钉选的仓库联动（按钉选顺序展示）。
+
+        pinned 数据来自采集期对 GitHub 主页 HTML 的解析（见 adapter_github.py），
+        在 GitHub 上调整钉选后重跑采集即可同步，不用改配置。
+        快照里没有 pinned 数据时，回落到 config 的 fixedProjects 人工清单。
+        """
+        pins = [p for p in self.data()["projects"] if p.get("pinned")]
+        pins.sort(key=lambda p: ((p.get("extra") or {}).get("pinOrder") or 999,
+                                 p.get("publishedAt") or ""))
+        if pins:
+            return pins
         names = (self.cfg.get("featured") or {}).get("fixedProjects") or []
         if not names:
             return []
@@ -798,7 +810,8 @@ class Builder:
         return out[:limit]
 
     def featured_block(self):
-        """首页精选：精选视频 / 精选音乐 / 精选吴语视频，各可下拉到前 20。
+        """首页精选：精选视频 / 精选音乐 / 精选吴语视频 / 精选吴语音乐 / 精选项目，
+        除人工兜底外一律默认收合（露 initialItems 条，向下拉看更多）。
 
         跟随排序的那两栏，服务端只渲染 initialItems 条做首屏与无 JS 兜底，
         剩下的由前端按当前排序补齐到 maxItems（见 app.js 的 refreshTop3）。
@@ -841,14 +854,15 @@ class Builder:
             cols.append(self.feat_col(
                 self.t("featured.wuyue_music"),
                 [self.mini(m, i + 1) for i, m in enumerate(wm)],
-                sub=self.t("feat.fixed"), scroll=False))
+                sub=self.t("feat.latest")))
 
         fixed = self.fixed_project_items()
         if fixed:
             cols.append(self.feat_col(
                 self.t("pin.projects"),
                 [self.mini_project(p) for p in fixed],
-                sub=self.t("feat.fixed"), scroll=False))
+                sub=self.t("feat.pinned"),
+                hint=self.t("feat.pullAll").replace("{n}", str(len(fixed)))))
 
         if not cols:
             return ""
