@@ -1808,6 +1808,9 @@
       cp.setAttribute("aria-label", t("share.copyTip"));
       cp.onclick = function () { if (link) copyToClipboard(link, t("share.copied")); };
     }
+    // 打开点击落在外面（分享按钮可能藏在播放器/操作气泡里），
+    // pointerdown 补丁顶不到刚开的窗，手动置顶，保证盖过开着的播放器
+    bringToFront(box);
     box.classList.add("open");
   }
 
@@ -2207,7 +2210,12 @@
     var btn = document.getElementById("bgm-btn");
     if (btn) btn.addEventListener("click", function () {
       var p = document.getElementById("bgm-panel");
-      if (p) p.classList.toggle("open");
+      if (p) {
+        var willOpen = !p.classList.contains("open");
+        p.classList.toggle("open", willOpen);
+        // 面板默认 z-index 低于播放器弹窗，打开时手动置顶（同分享窗）
+        if (willOpen) bringToFront(p);
+      }
     });
     var close = document.getElementById("bgm-close");
     if (close) close.addEventListener("click", function () {
@@ -2509,22 +2517,28 @@
     }, { passive: false });
   })();
 
-  /* 点哪个弹窗，哪个在最上层（原来播放器开着时语言菜单会被压住） */
+  /* 点哪个弹窗，哪个在最上层（原来播放器开着时语言菜单会被压住）。
+     bringToFront 另供「程序化开窗」使用：分享窗 / BGM 面板的打开点击落在
+     窗体外面（分享按钮、BGM 按钮），pointerdown 命中不到窗体本身，
+     开窗后要手动置顶，否则播放器开着时它们会被压在下面。 */
+  var zTop = 300;
+  function bringToFront(node) {
+    var cur = node, top = null;
+    while (cur && cur !== document.body) {
+      var cs = window.getComputedStyle(cur);
+      if (cs.position !== "static" && cs.zIndex !== "auto") top = cur;
+      cur = cur.parentElement;
+    }
+    if (top) { zTop += 1; top.style.zIndex = String(zTop); }
+  }
   (function () {
-    var z = 300;
     var SEL = ".op-bubble,#lyr-mask,#lang-menu,#lang-btn,.lang-btn,#bgm-panel,#modal,#share-modal";
     document.addEventListener("pointerdown", function (e) {
       var t0 = e.target;
       if (!t0 || !t0.closest) return;
       var hit = t0.closest(SEL);
       if (!hit) return;
-      var node = hit, top = null;
-      while (node && node !== document.body) {
-        var cs = window.getComputedStyle(node);
-        if (cs.position !== "static" && cs.zIndex !== "auto") top = node;
-        node = node.parentElement;
-      }
-      if (top) { z += 1; top.style.zIndex = String(z); }
+      bringToFront(hit);
     }, true);
   })();
 
