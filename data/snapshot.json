@@ -1,6 +1,6 @@
 {
  "schemaVersion": 1,
- "generatedAt": "2026-10-15T00:30:37Z",
+ "generatedAt": "2026-10-15T05:10:31Z",
  "profiles": {
   "github": {
    "platform": "github",
@@ -27,7 +27,7 @@
    "stats": {
     "followers": 3927,
     "following": false,
-    "likes": 42959
+    "likes": 42960
    },
    "level": 6,
    "avatarLocal": "assets/avatars/bilibili_avatar_543af103.webp"
@@ -437,7 +437,7 @@
    "url": "https://github.com/SiqYin/SYSite",
    "cover": null,
    "coverRemote": null,
-   "publishedAt": "2026-10-14T22:09:03Z",
+   "publishedAt": "2026-10-15T00:32:04Z",
    "description": "雪螢SiqYin 的个人作品聚合站 · 自动汇集哔哩哔哩、网易云音乐与 GitHub 的作品，四语言、可在线试听、随投稿自动更新",
    "tags": [
     "Python",
@@ -460,7 +460,7 @@
     "fullName": "SiqYin/SYSite",
     "homepage": "https://siqyin.github.io/SYSite/",
     "defaultBranch": "main",
-    "sizeKb": 66255,
+    "sizeKb": 66272,
     "archived": false,
     "createdAt": "2026-09-18T11:59:28Z",
     "pinOrder": 3,
@@ -891,7 +891,7 @@
     "原创音乐"
    ],
    "stats": {
-    "play": 5314,
+    "play": 5330,
     "danmaku": 1
    },
    "durationSec": 179,
@@ -977,7 +977,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 874,
+    "play": 875,
     "danmaku": 0
    },
    "durationSec": 185,
@@ -1079,7 +1079,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 66479,
+    "play": 66499,
     "danmaku": 9
    },
    "durationSec": 181,
@@ -1180,7 +1180,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 10838,
+    "play": 10842,
     "danmaku": 123
    },
    "durationSec": 247,
@@ -1311,7 +1311,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 10948,
+    "play": 10955,
     "danmaku": 119
    },
    "durationSec": 240,
@@ -1442,7 +1442,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 6786,
+    "play": 6789,
     "danmaku": 4
    },
    "durationSec": 392,
@@ -1743,7 +1743,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 5560,
+    "play": 5561,
     "danmaku": 39
    },
    "durationSec": 245,
@@ -2064,7 +2064,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 10940,
+    "play": 10942,
     "danmaku": 9
    },
    "durationSec": 192,
@@ -2229,7 +2229,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 18746,
+    "play": 18747,
     "danmaku": 6
    },
    "durationSec": 266,
@@ -2360,7 +2360,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 7187,
+    "play": 7190,
     "danmaku": 1
    },
    "durationSec": 223,
@@ -2457,7 +2457,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 109823,
+    "play": 109833,
     "danmaku": 197
    },
    "durationSec": 129,
@@ -2657,7 +2657,7 @@
     "日常"
    ],
    "stats": {
-    "view": 1250,
+    "view": 1251,
     "like": 32,
     "reply": 3,
     "favorite": 40
@@ -2860,7 +2860,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 4259,
+    "play": 4260,
     "danmaku": 3
    },
    "durationSec": 223,
@@ -3134,7 +3134,7 @@
     "翻唱"
    ],
    "stats": {
-    "play": 36180,
+    "play": 36182,
     "danmaku": 95
    },
    "durationSec": 230,
@@ -3270,7 +3270,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 6775,
+    "play": 6776,
     "danmaku": 2
    },
    "durationSec": 327,
@@ -3376,7 +3376,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 24146,
+    "play": 24148,
     "danmaku": 54
    },
    "durationSec": 257,
@@ -3444,7 +3444,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 37520,
+    "play": 37521,
     "danmaku": 36
    },
    "durationSec": 233,
@@ -3548,7 +3548,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 99614,
+    "play": 99622,
     "danmaku": 29
    },
    "durationSec": 290,
@@ -3917,7 +3917,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 136600,
+    "play": 136604,
     "danmaku": 562
    },
    "durationSec": 266,
@@ -4320,7 +4320,7 @@
     "翻唱"
    ],
    "stats": {
-    "play": 14917,
+    "play": 14918,
     "danmaku": 24
    },
    "durationSec": 184,
@@ -4526,7 +4526,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 72076,
+    "play": 72080,
     "danmaku": 493
    },
    "durationSec": 216,
@@ -4560,7 +4560,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 78866,
+    "play": 78869,
     "danmaku": 26
    },
    "durationSec": 217,
@@ -4698,7 +4698,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 166333,
+    "play": 166334,
     "danmaku": 396
    },
    "durationSec": 89,
@@ -4732,7 +4732,7 @@
     "音乐综合"
    ],
    "stats": {
-    "play": 65556,
+    "play": 65559,
     "danmaku": 301
    },
    "durationSec": 244,
@@ -4800,7 +4800,7 @@
     "翻唱"
    ],
    "stats": {
-    "play": 34827,
+    "play": 34828,
     "danmaku": 305
    },
    "durationSec": 279,
@@ -4868,7 +4868,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 82340,
+    "play": 82342,
     "danmaku": 517
    },
    "durationSec": 258,
@@ -4972,7 +4972,7 @@
     "音乐综合"
    ],
    "stats": {
-    "play": 330736,
+    "play": 330745,
     "danmaku": 714
    },
    "durationSec": 277,
@@ -5040,7 +5040,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 17344,
+    "play": 17345,
     "danmaku": 11
    },
    "durationSec": 184,
@@ -5244,7 +5244,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 227637,
+    "play": 227641,
     "danmaku": 472
    },
    "durationSec": 199,
@@ -5486,7 +5486,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 763536,
+    "play": 763553,
     "danmaku": 4763
    },
    "durationSec": 289,
@@ -5590,7 +5590,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 28451,
+    "play": 28452,
     "danmaku": 2
    },
    "durationSec": 252,
@@ -5900,7 +5900,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 32774,
+    "play": 32776,
     "danmaku": 9
    },
    "durationSec": 258,
@@ -5934,7 +5934,7 @@
     "MV"
    ],
    "stats": {
-    "play": 86673,
+    "play": 86677,
     "danmaku": 569
    },
    "durationSec": 251,
@@ -5968,7 +5968,7 @@
     "翻唱"
    ],
    "stats": {
-    "play": 46667,
+    "play": 46668,
     "danmaku": 25
    },
    "durationSec": 258,
@@ -6036,7 +6036,7 @@
     "VOCALOID·UTAU"
    ],
    "stats": {
-    "play": 142704,
+    "play": 142707,
     "danmaku": 355
    },
    "durationSec": 251,
@@ -6106,7 +6106,7 @@
     "翻唱"
    ],
    "stats": {
-    "play": 42010,
+    "play": 42011,
     "danmaku": 126
    },
    "durationSec": 212,
@@ -6416,7 +6416,7 @@
     "翻唱"
    ],
    "stats": {
-    "play": 47491,
+    "play": 47492,
     "danmaku": 29
    },
    "durationSec": 312,
@@ -6615,7 +6615,7 @@
     "综合"
    ],
    "stats": {
-    "play": 99990,
+    "play": 99992,
     "danmaku": 180
    },
    "durationSec": 227,
@@ -8688,9 +8688,9 @@
    "ok": true,
    "itemCount": 13,
    "collectionCount": 0,
-   "latestAt": "2026-10-14T22:09:03Z",
+   "latestAt": "2026-10-15T00:32:04Z",
    "error": null,
-   "fetchedAt": "2026-10-15T00:25:41Z"
+   "fetchedAt": "2026-10-15T05:07:43Z"
   },
   "bilibili": {
    "ok": true,
@@ -8698,19 +8698,21 @@
    "collectionCount": 6,
    "latestAt": "2026-09-24T21:20:00Z",
    "error": null,
-   "fetchedAt": "2026-10-15T00:26:16Z"
+   "fetchedAt": "2026-10-15T05:08:18Z"
   },
   "netease": {
-   "ok": true,
+   "ok": false,
    "itemCount": 56,
    "collectionCount": 0,
    "latestAt": "2026-06-24T16:00:00Z",
-   "error": null,
-   "fetchedAt": "2026-10-15T00:30:37Z"
+   "error": "AttributeError: 'str' object has no attribute 'get'",
+   "fetchedAt": "2026-10-15T05:10:31Z"
   }
  },
- "errors": [],
- "fingerprint": "bf2f591279220b68",
+ "errors": [
+  "netease 采集失败（AttributeError: 'str' object has no attribute 'get'），沿用上次快照"
+ ],
+ "fingerprint": "c89afa501e10f1e6",
  "changed": true,
  "profilesLocalReady": true
 }
